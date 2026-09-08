@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Phòng Khám Thiện Nhân - Chăm sóc sức khỏe tận tâm, chuyên nghiệp. Đặt lịch khám ngay hôm nay." />
+  <title>Phòng Khám Thiện Nhân</title>
+  <link rel="stylesheet" href="assets/css/style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+</head>
+<body>
+
+  <!-- ===== PRELOADER ===== -->
+  <div class="preloader" id="preloader">
+    <div class="preloader__inner">
+      <div class="preloader__logo">
+        <span class="preloader__cross">✚</span>
+      </div>
+      <p class="preloader__text">Thiện Nhân</p>
+    </div>
+  </div>
+
+  <!-- ===== HEADER / NAV ===== -->
+  <header class="header" id="header">
+    <nav class="nav container">
+      <a href="#hero" class="nav__brand">
+        <div class="nav__logo">
+          <span class="nav__logo-icon">✚</span>
+        </div>
+        <div class="nav__brand-text">
+          <span class="nav__name">Thiện Nhân</span>
+          <span class="nav__subtitle">Phòng Khám Đa Khoa</span>
+        </div>
+      </a>
+
+      <ul class="nav__menu" id="navMenu">
+        <li><a href="#hero" class="nav__link active">Trang chủ</a></li>
+        <li><a href="#services" class="nav__link">Dịch vụ</a></li>
+        <li><a href="#about" class="nav__link">Về chúng tôi</a></li>
+        <li><a href="#doctors" class="nav__link">Đội ngũ bác sĩ</a></li>
+        <li><a href="#stats" class="nav__link">Thống kê</a></li>
+        <li><a href="#contact" class="nav__link">Liên hệ</a></li>
+      </ul>
+
+      <a href="#booking" class="btn btn--primary nav__cta">
+        <i class="fas fa-calendar-plus"></i> Đặt Lịch Khám
+      </a>
+
+      <button class="nav__toggle" id="navToggle" aria-label="Toggle menu">
+        <span></span><span></span><span></span>
+      </button>
+    </nav>
+  </header>
+
+  <main>
+
+    <!-- ===== HERO ===== -->
+    <section class="hero" id="hero">
+      <div class="hero__bg">
+        <div class="hero__shape hero__shape--1"></div>
+        <div class="hero__shape hero__shape--2"></div>
+        <div class="hero__shape hero__shape--3"></div>
+        <div class="hero__particles" id="particles"></div>
+      </div>
+
+      <div class="container hero__container">
+        <div class="hero__content" data-aos="fade-right">
+          <div class="hero__badge">
+            <i class="fas fa-award"></i>
+            <span>Phòng khám uy tín hàng đầu</span>
+          </div>
+          <h1 class="hero__title">
+            Chăm Sóc Sức Khỏe
+            <span class="hero__title-accent">Tận Tâm</span>
+            Cho Gia Đình Bạn
+          </h1>
+          <p class="hero__desc">
+            Phòng Khám Thiện Nhân mang đến dịch vụ y tế chất lượng cao với đội ngũ bác sĩ chuyên khoa
+            giàu kinh nghiệm và trang thiết bị hiện đại — vì sức khỏe của bạn là ưu tiên hàng đầu.
+          </p>
+          <div class="hero__actions">
+            <a href="#booking" class="btn btn--primary btn--lg">
+              <i class="fas fa-calendar-check"></i> Đặt Lịch Ngay
+            </a>
+            <a href="#about" class="btn btn--ghost btn--lg">
+              <i class="fas fa-play-circle"></i> Tìm Hiểu Thêm
+            </a>
+          </div>
+          <div class="hero__trust">
+            <div class="hero__trust-item">
+              <i class="fas fa-shield-alt"></i>
+              <span>Bảo hiểm y tế</span>
+            </div>
+            <div class="hero__trust-item">
+              <i class="fas fa-clock"></i>
+              <span>Mở cửa 7 ngày/tuần</span>
+            </div>
+            <div class="hero__trust-item">
+              <i class="fas fa-phone-alt"></i>
+              <span>Hỗ trợ 24/7</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="hero__visual" data-aos="fade-left">
+          <div class="hero__card-float hero__card-float--top">
+            <i class="fas fa-heartbeat"></i>
+            <div>
+              <strong>Khám Tim Mạch</strong>
+              <span>Hôm nay, 09:00</span>
+            </div>
+          </div>
+          <div class="hero__img-wrapper">
+            <div class="hero__img-circle hero__img-circle--outer"></div>
+            <div class="hero__img-circle hero__img-circle--inner"></div>
+            <div class="hero__img-placeholder">
+              <div class="hero__medical-icon">
+                <i class="fas fa-user-md"></i>
+              </div>
+              <div class="hero__pulse-ring"></div>
+              <div class="hero__pulse-ring hero__pulse-ring--delay"></div>
+            </div>
+          </div>
+          <div class="hero__card-float hero__card-float--bottom">
+            <i class="fas fa-star" style="color:#f59e0b"></i>
+            <div>
+              <strong>4.9 / 5.0</strong>
+              <span>1,200+ đánh giá</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="hero__scroll">
+        <a href="#services" class="hero__scroll-btn" aria-label="Scroll down">
+          <i class="fas fa-chevron-down"></i>
+        </a>
+      </div>
+    </section>
+
+    <!-- ===== MARQUEE TICKER ===== -->
+    <div class="ticker">
+      <div class="ticker__inner">
+        <span>✚ Khám Tổng Quát</span>
+        <span>✚ Nhi Khoa</span>
+        <span>✚ Nội Khoa</span>
+        <span>✚ Tim Mạch</span>
+        <span>✚ Da Liễu</span>
+        <span>✚ Tiêu Hóa</span>
+        <span>✚ Xét Nghiệm Máu</span>
+        <span>✚ Siêu Âm</span>
+        <span>✚ X-Quang</span>
+        <span>✚ Tư Vấn Dinh Dưỡng</span>
+        <!-- duplicate for loop -->
+        <span>✚ Khám Tổng Quát</span>
+        <span>✚ Nhi Khoa</span>
+        <span>✚ Nội Khoa</span>
+        <span>✚ Tim Mạch</span>
+        <span>✚ Da Liễu</span>
+        <span>✚ Tiêu Hóa</span>
+        <span>✚ Xét Nghiệm Máu</span>
+        <span>✚ Siêu Âm</span>
+        <span>✚ X-Quang</span>
+        <span>✚ Tư Vấn Dinh Dưỡng</span>
+      </div>
+    </div>
+
+    <!-- ===== SERVICES ===== -->
+    <section class="section services" id="services">
+      <div class="container">
+        <div class="section__header" data-aos="fade-up">
+          <span class="section__tag">Dịch Vụ</span>
+          <h2 class="section__title">Chuyên Khoa Của Chúng Tôi</h2>
+          <p class="section__desc">Cung cấp đa dạng dịch vụ y tế với tiêu chuẩn chất lượng quốc tế</p>
+        </div>
+
+        <div class="services__grid">
+          <div class="service-card" data-aos="fade-up" data-aos-delay="50">
+            <div class="service-card__icon service-card__icon--blue">
+              <i class="fas fa-heartbeat"></i>
+            </div>
+            <h3 class="service-card__title">Tim Mạch</h3>
+            <p class="service-card__desc">Chẩn đoán và điều trị các bệnh lý về tim, mạch máu với trang thiết bị hiện đại nhất.</p>
+            <a href="#booking" class="service-card__link">Đặt lịch <i class="fas fa-arrow-right"></i></a>
+          </div>
+
+          <div class="service-card" data-aos="fade-up" data-aos-delay="100">
+            <div class="service-card__icon service-card__icon--green">
+              <i class="fas fa-baby"></i>
+            </div>
+            <h3 class="service-card__title">Nhi Khoa</h3>
+            <p class="service-card__desc">Chăm sóc sức khỏe toàn diện cho trẻ em từ sơ sinh đến 16 tuổi với bác sĩ nhi chuyên khoa.</p>
+            <a href="#booking" class="service-card__link">Đặt lịch <i class="fas fa-arrow-right"></i></a>
+          </div>
+
+          <div class="service-card" data-aos="fade-up" data-aos-delay="150">
+            <div class="service-card__icon service-card__icon--purple">
+              <i class="fas fa-brain"></i>
+            </div>
+            <h3 class="service-card__title">Thần Kinh</h3>
+            <p class="service-card__desc">Chẩn đoán và điều trị các rối loạn hệ thần kinh trung ương và ngoại biên.</p>
+            <a href="#booking" class="service-card__link">Đặt lịch <i class="fas fa-arrow-right"></i></a>
+          </div>
+
+          <div class="service-card" data-aos="fade-up" data-aos-delay="200">
+            <div class="service-card__icon service-card__icon--orange">
+              <i class="fas fa-bone"></i>
+            </div>
+            <h3 class="service-card__title">Cơ Xương Khớp</h3>
+            <p class="service-card__desc">Điều trị các bệnh lý xương khớp, cột sống và phục hồi chức năng vận động.</p>
+            <a href="#booking" class="service-card__link">Đặt lịch <i class="fas fa-arrow-right"></i></a>
+          </div>
+
+          <div class="service-card" data-aos="fade-up" data-aos-delay="250">
+            <div class="service-card__icon service-card__icon--teal">
+              <i class="fas fa-lungs"></i>
+            </div>
+            <h3 class="service-card__title">Hô Hấp</h3>
+            <p class="service-card__desc">Khám và điều trị các bệnh lý đường hô hấp, phổi và các bệnh dị ứng hô hấp.</p>
+            <a href="#booking" class="service-card__link">Đặt lịch <i class="fas fa-arrow-right"></i></a>
+          </div>
+
+          <div class="service-card" data-aos="fade-up" data-aos-delay="300">
+            <div class="service-card__icon service-card__icon--red">
+              <i class="fas fa-microscope"></i>
+            </div>
+            <h3 class="service-card__title">Xét Nghiệm</h3>
+            <p class="service-card__desc">Hệ thống xét nghiệm hiện đại, trả kết quả nhanh chóng và chính xác trong ngày.</p>
+            <a href="#booking" class="service-card__link">Đặt lịch <i class="fas fa-arrow-right"></i></a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== ABOUT ===== -->
+    <section class="section about" id="about">
+      <div class="container about__container">
+        <div class="about__visual" data-aos="fade-right">
+          <div class="about__img-grid">
+            <div class="about__img-main">
+              <div class="about__img-placeholder about__img-placeholder--main">
+                <i class="fas fa-hospital-alt"></i>
+              </div>
+            </div>
+            <div class="about__img-secondary">
+              <div class="about__img-placeholder about__img-placeholder--sm">
+                <i class="fas fa-stethoscope"></i>
+              </div>
+              <div class="about__img-placeholder about__img-placeholder--sm about__img-placeholder--green">
+                <i class="fas fa-pills"></i>
+              </div>
+            </div>
+          </div>
+          <div class="about__badge-float">
+            <i class="fas fa-certificate"></i>
+            <div>
+              <strong>Chứng nhận ISO</strong>
+              <span>Tiêu chuẩn quốc tế</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="about__content" data-aos="fade-left">
+          <span class="section__tag">Về Chúng Tôi</span>
+          <h2 class="section__title section__title--left">
+            Hơn 10 Năm Chăm Sóc Sức Khỏe Cộng Đồng
+          </h2>
+          <p class="about__desc">
+            Phòng Khám Thiện Nhân được thành lập với sứ mệnh mang lại dịch vụ chăm sóc y tế chất lượng cao,
+            tiếp cận được với mọi tầng lớp người dân. Chúng tôi tin rằng mỗi bệnh nhân xứng đáng được
+            nhận sự quan tâm và điều trị tốt nhất.
+          </p>
+          <ul class="about__features">
+            <li class="about__feature">
+              <div class="about__feature-icon">
+                <i class="fas fa-check"></i>
+              </div>
+              <div>
+                <strong>Đội ngũ y bác sĩ chuyên khoa</strong>
+                <p>Hơn 30 bác sĩ với kinh nghiệm từ 10-25 năm trong các chuyên khoa khác nhau</p>
+              </div>
+            </li>
+            <li class="about__feature">
+              <div class="about__feature-icon">
+                <i class="fas fa-check"></i>
+              </div>
+              <div>
+                <strong>Trang thiết bị hiện đại</strong>
+                <p>Máy móc y tế nhập khẩu từ các nước G7, đạt chuẩn chẩn đoán quốc tế</p>
+              </div>
+            </li>
+            <li class="about__feature">
+              <div class="about__feature-icon">
+                <i class="fas fa-check"></i>
+              </div>
+              <div>
+                <strong>Quy trình tiêu chuẩn & minh bạch</strong>
+                <p>Hệ thống quản lý bệnh nhân điện tử, theo dõi kết quả trực tuyến 24/7</p>
+              </div>
+            </li>
+          </ul>
+          <a href="#booking" class="btn btn--primary">
+            <i class="fas fa-calendar-plus"></i> Đặt Lịch Khám Ngay
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== STATS ===== -->
+    <section class="stats" id="stats">
+      <div class="stats__bg"></div>
+      <div class="container stats__container">
+        <div class="stat-item" data-aos="fade-up" data-aos-delay="0">
+          <div class="stat-item__icon"><i class="fas fa-users"></i></div>
+          <div class="stat-item__value">
+            <span class="stat-item__number" data-target="50000">0</span>
+            <span class="stat-item__plus">+</span>
+          </div>
+          <div class="stat-item__label">Bệnh nhân tin tưởng</div>
+        </div>
+        <div class="stat-item" data-aos="fade-up" data-aos-delay="100">
+          <div class="stat-item__icon"><i class="fas fa-user-md"></i></div>
+          <div class="stat-item__value">
+            <span class="stat-item__number" data-target="30">0</span>
+            <span class="stat-item__plus">+</span>
+          </div>
+          <div class="stat-item__label">Bác sĩ chuyên khoa</div>
+        </div>
+        <div class="stat-item" data-aos="fade-up" data-aos-delay="200">
+          <div class="stat-item__icon"><i class="fas fa-trophy"></i></div>
+          <div class="stat-item__value">
+            <span class="stat-item__number" data-target="10">0</span>
+            <span class="stat-item__plus">+</span>
+          </div>
+          <div class="stat-item__label">Năm kinh nghiệm</div>
+        </div>
+        <div class="stat-item" data-aos="fade-up" data-aos-delay="300">
+          <div class="stat-item__icon"><i class="fas fa-star"></i></div>
+          <div class="stat-item__value">
+            <span class="stat-item__number" data-target="98">0</span>
+            <span class="stat-item__plus">%</span>
+          </div>
+          <div class="stat-item__label">Bệnh nhân hài lòng</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== DOCTORS ===== -->
+    <section class="section doctors" id="doctors">
+      <div class="container">
+        <div class="section__header" data-aos="fade-up">
+          <span class="section__tag">Đội Ngũ</span>
+          <h2 class="section__title">Bác Sĩ Chuyên Khoa</h2>
+          <p class="section__desc">Gặp gỡ những chuyên gia y tế tận tâm của chúng tôi</p>
+        </div>
+
+        <div class="doctors__grid">
+          <div class="doctor-card" data-aos="fade-up" data-aos-delay="50">
+            <div class="doctor-card__img">
+              <div class="doctor-card__avatar doctor-card__avatar--blue">
+                <i class="fas fa-user-md"></i>
+              </div>
+              <div class="doctor-card__social">
+                <a href="#" aria-label="Email"><i class="fas fa-envelope"></i></a>
+                <a href="#" aria-label="Phone"><i class="fas fa-phone"></i></a>
+              </div>
+            </div>
+            <div class="doctor-card__info">
+              <h3>BS. CKI Nguyễn Văn An</h3>
+              <span class="doctor-card__spec">Tim Mạch</span>
+              <div class="doctor-card__rating">
+                <i class="fas fa-star"></i>
+                <i class="fas fa-star"></i>
+                <i class="fas fa-star"></i>
+                <i class="fas fa-star"></i>
+                <i class="fas fa-star"></i>
+                <span>5.0</span>
+              </div>
+              <p>15 năm kinh nghiệm, từng công tác tại Bệnh viện Chợ Rẫy.</p>
+            </div>
+          </div>
+
+          <div class="doctor-card" data-aos="fade-up" data-aos-delay="150">
+            <div class="doctor-card__img">
+              <div class="doctor-card__avatar doctor-card__avatar--green">
+                <i class="fas fa-user-nurse"></i>
+              </div>
+              <div class="doctor-card__social">
+                <a href="#" aria-label="Email"><i class="fas fa-envelope"></i></a>
+                <a href="#" aria-label="Phone"><i class="fas fa-phone"></i></a>
+              </div>
+            </div>
+            <div class="doctor-card__info">
+              <h3>BS. CKII Trần Thị Bình</h3>
+              <span class="doctor-card__spec">Nhi Khoa</span>
+              <div class="doctor-card__rating">
+                <i class="fas fa-star"></i>
+                <i class="fas fa-star"></i>
+                <i class="fas fa-star"></i>
+                <i class="fas fa-star"></i>
+                <i class="fas fa-star-half-alt"></i>
+                <span>4.9</span>
+              </div>
+              <p>20 năm chuyên sâu nhi khoa, Thạc sĩ Y khoa Đại học Y Hà Nội.</p>
+            </div>
+          </div>
+
+          <div class="doctor-card" data-aos="fade-up" data-aos-delay="250">
+            <div class="doctor-card__img">
+              <div class="doctor-card__avatar doctor-card__avatar--purple">
+                <i class="fas fa-user-md"></i>
+              </div>
+              <div class="doctor-card__social">
+                <a href="#" aria-label="Email"><i class="fas fa-envelope"></i></a>
+                <a href="#" aria-label="Phone"><i class="fas fa-phone"></i></a>
+              </div>
+            </div>
+            <div class="doctor-card__info">
+              <h3>TS. BS Lê Minh Khoa</h3>
+              <span class="doctor-card__spec">Thần Kinh</span>
+              <div class="doctor-card__rating">
+                <i class="fas fa-star"></i>
+                <i class="fas fa-star"></i>
+                <i class="fas fa-star"></i>
+                <i class="fas fa-star"></i>
+                <i class="fas fa-star"></i>
+                <span>5.0</span>
+              </div>
+              <p>Tiến sĩ Y khoa, chuyên gia thần kinh với nhiều công trình nghiên cứu quốc tế.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== TESTIMONIALS ===== -->
+    <section class="section testimonials" id="testimonials">
+      <div class="container">
+        <div class="section__header" data-aos="fade-up">
+          <span class="section__tag">Đánh Giá</span>
+          <h2 class="section__title">Bệnh Nhân Nói Gì Về Chúng Tôi</h2>
+        </div>
+
+        <div class="testimonials__track" id="testimonialTrack">
+          <div class="testimonial-card">
+            <div class="testimonial-card__stars">
+              <i class="fas fa-star"></i><i class="fas fa-star"></i>
+              <i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i>
+            </div>
+            <p class="testimonial-card__text">"Dịch vụ tuyệt vời! Bác sĩ rất tận tâm và chuyên nghiệp. Tôi đã đưa cả gia đình đến khám tại đây và ai cũng hài lòng. Sẽ tiếp tục quay lại!"</p>
+            <div class="testimonial-card__author">
+              <div class="testimonial-card__avatar">N</div>
+              <div>
+                <strong>Chị Nguyễn Thị Lan</strong>
+                <span>Khách hàng thường xuyên</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="testimonial-card">
+            <div class="testimonial-card__stars">
+              <i class="fas fa-star"></i><i class="fas fa-star"></i>
+              <i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i>
+            </div>
+            <p class="testimonial-card__text">"Đặt lịch online rất dễ dàng, không cần chờ đợi lâu. Bác sĩ giải thích chi tiết về tình trạng sức khỏe, tôi rất an tâm sau khi khám."</p>
+            <div class="testimonial-card__author">
+              <div class="testimonial-card__avatar" style="background: #10b981;">T</div>
+              <div>
+                <strong>Anh Trần Văn Hùng</strong>
+                <span>Bệnh nhân khám tim mạch</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="testimonial-card">
+            <div class="testimonial-card__stars">
+              <i class="fas fa-star"></i><i class="fas fa-star"></i>
+              <i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i>
+            </div>
+            <p class="testimonial-card__text">"Con tôi hay bệnh và tôi luôn tin tưởng đưa bé đến Thiện Nhân. Bác sĩ nhi rất nhẹ nhàng, kiên nhẫn với bé. Phòng khám sạch sẽ, khang trang."</p>
+            <div class="testimonial-card__author">
+              <div class="testimonial-card__avatar" style="background: #8b5cf6;">P</div>
+              <div>
+                <strong>Chị Phạm Thị Mai</strong>
+                <span>Bệnh nhân nhi khoa</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="testimonials__dots" id="testimonialDots">
+          <button class="testimonials__dot active" data-index="0" aria-label="Testimonial 1"></button>
+          <button class="testimonials__dot" data-index="1" aria-label="Testimonial 2"></button>
+          <button class="testimonials__dot" data-index="2" aria-label="Testimonial 3"></button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== BOOKING ===== -->
+    <section class="section booking" id="booking">
+      <div class="container booking__container">
+        <div class="booking__info" data-aos="fade-right">
+          <span class="section__tag section__tag--white">Đặt Lịch</span>
+          <h2 class="booking__title">Đặt Lịch Khám Dễ Dàng</h2>
+          <p class="booking__desc">Chỉ cần vài bước đơn giản, bạn đã có thể đặt lịch khám với bác sĩ chuyên khoa mà bạn mong muốn.</p>
+          <ul class="booking__steps">
+            <li>
+              <div class="booking__step-num">1</div>
+              <div>
+                <strong>Chọn chuyên khoa</strong>
+                <p>Chọn dịch vụ hoặc chuyên khoa phù hợp với nhu cầu</p>
+              </div>
+            </li>
+            <li>
+              <div class="booking__step-num">2</div>
+              <div>
+                <strong>Chọn bác sĩ & giờ khám</strong>
+                <p>Xem lịch trống và chọn thời gian thuận tiện nhất</p>
+              </div>
+            </li>
+            <li>
+              <div class="booking__step-num">3</div>
+              <div>
+                <strong>Xác nhận & đến khám</strong>
+                <p>Nhận thông báo xác nhận và đến đúng giờ đã hẹn</p>
+              </div>
+            </li>
+          </ul>
+        </div>
+
+        <div class="booking__form-wrapper" data-aos="fade-left">
+          <form class="booking__form" id="bookingForm" novalidate>
+            <h3 class="booking__form-title">
+              <i class="fas fa-calendar-plus"></i> Đặt Lịch Khám
+            </h3>
+
+            <div class="form-group">
+              <label for="fullName">Họ và tên <span class="required">*</span></label>
+              <div class="form-input-wrapper">
+                <i class="fas fa-user"></i>
+                <input type="text" id="fullName" name="fullName" placeholder="Nguyễn Văn A" required />
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="phone">Số điện thoại <span class="required">*</span></label>
+                <div class="form-input-wrapper">
+                  <i class="fas fa-phone"></i>
+                  <input type="tel" id="phone" name="phone" placeholder="0912 345 678" required />
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="dob">Ngày sinh</label>
+                <div class="form-input-wrapper">
+                  <i class="fas fa-birthday-cake"></i>
+                  <input type="date" id="dob" name="dob" />
+                </div>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="specialty">Chuyên khoa <span class="required">*</span></label>
+              <div class="form-input-wrapper">
+                <i class="fas fa-stethoscope"></i>
+                <select id="specialty" name="specialty" required>
+                  <option value="">-- Chọn chuyên khoa --</option>
+                  <option value="cardiology">Tim Mạch</option>
+                  <option value="pediatrics">Nhi Khoa</option>
+                  <option value="neurology">Thần Kinh</option>
+                  <option value="orthopedics">Cơ Xương Khớp</option>
+                  <option value="pulmonology">Hô Hấp</option>
+                  <option value="general">Khám Tổng Quát</option>
+                  <option value="dermatology">Da Liễu</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="date">Ngày khám <span class="required">*</span></label>
+                <div class="form-input-wrapper">
+                  <i class="fas fa-calendar"></i>
+                  <input type="date" id="date" name="date" required />
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="time">Giờ khám <span class="required">*</span></label>
+                <div class="form-input-wrapper">
+                  <i class="fas fa-clock"></i>
+                  <select id="time" name="time" required>
+                    <option value="">-- Chọn giờ --</option>
+                    <option value="07:30">07:30 sáng</option>
+                    <option value="08:00">08:00 sáng</option>
+                    <option value="08:30">08:30 sáng</option>
+                    <option value="09:00">09:00 sáng</option>
+                    <option value="09:30">09:30 sáng</option>
+                    <option value="10:00">10:00 sáng</option>
+                    <option value="14:00">14:00 chiều</option>
+                    <option value="14:30">14:30 chiều</option>
+                    <option value="15:00">15:00 chiều</option>
+                    <option value="15:30">15:30 chiều</option>
+                    <option value="16:00">16:00 chiều</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="notes">Triệu chứng / ghi chú</label>
+              <div class="form-input-wrapper form-input-wrapper--textarea">
+                <i class="fas fa-notes-medical"></i>
+                <textarea id="notes" name="notes" rows="3" placeholder="Mô tả triệu chứng hoặc yêu cầu đặc biệt..."></textarea>
+              </div>
+            </div>
+
+            <button type="submit" class="btn btn--primary btn--full" id="submitBtn">
+              <i class="fas fa-paper-plane"></i> Xác Nhận Đặt Lịch
+            </button>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== CONTACT ===== -->
+    <section class="section contact" id="contact">
+      <div class="container">
+        <div class="section__header" data-aos="fade-up">
+          <span class="section__tag">Liên Hệ</span>
+          <h2 class="section__title">Tìm Chúng Tôi</h2>
+        </div>
+
+        <div class="contact__grid">
+          <div class="contact__info" data-aos="fade-right">
+            <div class="contact-item">
+              <div class="contact-item__icon contact-item__icon--blue">
+                <i class="fas fa-map-marker-alt"></i>
+              </div>
+              <div class="contact-item__text">
+                <strong>Địa chỉ</strong>
+                <p>123 Đường Lê Lợi, Phường Bến Nghé,<br />Quận 1, TP. Hồ Chí Minh</p>
+              </div>
+            </div>
+            <div class="contact-item">
+              <div class="contact-item__icon contact-item__icon--green">
+                <i class="fas fa-phone-alt"></i>
+              </div>
+              <div class="contact-item__text">
+                <strong>Điện thoại</strong>
+                <p><a href="tel:02812345678">(028) 1234 5678</a></p>
+                <p><a href="tel:0912345678">0912 345 678</a> (Hotline 24/7)</p>
+              </div>
+            </div>
+            <div class="contact-item">
+              <div class="contact-item__icon contact-item__icon--orange">
+                <i class="fas fa-envelope"></i>
+              </div>
+              <div class="contact-item__text">
+                <strong>Email</strong>
+                <p><a href="mailto:info@phongkhamthumannhan.vn">info@phongkhamthiannhan.vn</a></p>
+              </div>
+            </div>
+            <div class="contact-item">
+              <div class="contact-item__icon contact-item__icon--purple">
+                <i class="fas fa-clock"></i>
+              </div>
+              <div class="contact-item__text">
+                <strong>Giờ làm việc</strong>
+                <p>Thứ 2 – Thứ 6: 07:30 – 17:00</p>
+                <p>Thứ 7 – Chủ nhật: 07:30 – 12:00</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="contact__map" data-aos="fade-left">
+            <div class="contact__map-placeholder">
+              <i class="fas fa-map-marked-alt"></i>
+              <p>Bản đồ Google Maps</p>
+              <span>123 Đường Lê Lợi, Quận 1, TP.HCM</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ===== FOOTER ===== -->
+  <footer class="footer">
+    <div class="footer__top">
+      <div class="container footer__grid">
+        <div class="footer__brand">
+          <a href="#hero" class="footer__logo">
+            <span class="footer__logo-icon">✚</span>
+            <div>
+              <span class="footer__name">Thiện Nhân</span>
+              <span class="footer__tagline">Phòng Khám Đa Khoa</span>
+            </div>
+          </a>
+          <p class="footer__about">
+            Phòng Khám Thiện Nhân — đồng hành cùng sức khỏe của bạn và gia đình.
+            Chuyên nghiệp, tận tâm, hiệu quả.
+          </p>
+          <div class="footer__social">
+            <a href="#" class="footer__social-link" aria-label="Facebook"><i class="fab fa-facebook-f"></i></a>
+            <a href="#" class="footer__social-link" aria-label="YouTube"><i class="fab fa-youtube"></i></a>
+            <a href="#" class="footer__social-link" aria-label="Zalo"><i class="fas fa-comment-dots"></i></a>
+            <a href="#" class="footer__social-link" aria-label="Instagram"><i class="fab fa-instagram"></i></a>
+          </div>
+        </div>
+
+        <div class="footer__col">
+          <h4 class="footer__col-title">Dịch Vụ</h4>
+          <ul class="footer__links">
+            <li><a href="#services">Khám Tim Mạch</a></li>
+            <li><a href="#services">Khám Nhi Khoa</a></li>
+            <li><a href="#services">Khám Thần Kinh</a></li>
+            <li><a href="#services">Cơ Xương Khớp</a></li>
+            <li><a href="#services">Xét Nghiệm</a></li>
+            <li><a href="#services">Siêu Âm</a></li>
+          </ul>
+        </div>
+
+        <div class="footer__col">
+          <h4 class="footer__col-title">Thông Tin</h4>
+          <ul class="footer__links">
+            <li><a href="#about">Về Chúng Tôi</a></li>
+            <li><a href="#doctors">Đội Ngũ Bác Sĩ</a></li>
+            <li><a href="#booking">Đặt Lịch Khám</a></li>
+            <li><a href="#contact">Liên Hệ</a></li>
+            <li><a href="#">Tin Tức Y Tế</a></li>
+            <li><a href="#">Chính Sách Bảo Mật</a></li>
+          </ul>
+        </div>
+
+        <div class="footer__col">
+          <h4 class="footer__col-title">Hotline Khẩn Cấp</h4>
+          <div class="footer__hotline">
+            <a href="tel:0912345678" class="footer__hotline-btn">
+              <i class="fas fa-phone-alt"></i>
+              <div>
+                <span>Gọi Ngay</span>
+                <strong>0912 345 678</strong>
+              </div>
+            </a>
+          </div>
+          <p class="footer__hotline-note">Hỗ trợ 24/7 — Không ngày nghỉ</p>
+          <div class="footer__cert">
+            <span><i class="fas fa-certificate"></i> Chứng nhận ISO 9001</span>
+            <span><i class="fas fa-shield-alt"></i> Được Bộ Y Tế cấp phép</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer__bottom">
+      <div class="container footer__bottom-inner">
+        <p>© 2026 Phòng Khám Thiện Nhân. Bảo lưu mọi quyền.</p>
+        <p class="footer__credit">
+          Thiết kế & phát triển bởi
+          <a href="#" class="footer__credit-link">Nguyễn Quang Huy</a>
+        </p>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Floating CTA -->
+  <div class="floating-cta">
+    <a href="tel:0912345678" class="floating-cta__btn floating-cta__btn--phone" aria-label="Gọi điện">
+      <i class="fas fa-phone-alt"></i>
+    </a>
+    <a href="#booking" class="floating-cta__btn floating-cta__btn--booking" aria-label="Đặt lịch">
+      <i class="fas fa-calendar-plus"></i>
+    </a>
+  </div>
+
+  <!-- Back to top -->
+  <button class="back-to-top" id="backToTop" aria-label="Back to top">
+    <i class="fas fa-chevron-up"></i>
+  </button>
+
+  <!-- Success Modal -->
+  <div class="modal" id="successModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal__overlay" id="modalOverlay"></div>
+    <div class="modal__box">
+      <div class="modal__icon">
+        <i class="fas fa-check-circle"></i>
+      </div>
+      <h3 class="modal__title" id="modalTitle">Đặt Lịch Thành Công!</h3>
+      <p class="modal__desc">Cảm ơn bạn đã đặt lịch khám. Chúng tôi sẽ liên hệ xác nhận trong vòng 15 phút.</p>
+      <button class="btn btn--primary" id="modalClose">Đóng</button>
+    </div>
+  </div>
+
+  <script src="assets/js/main.js"></script>
+</body>
+</html>
