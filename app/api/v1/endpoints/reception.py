@@ -32,6 +32,7 @@ from app.schemas.reception import (
     ClinicRoomStat, ClinicRoomStatResponse,
 )
 from app.schemas.common import PaginatedResponse, MessageResponse
+from app.models.reception import ReceptionStatus
 from app.services.websocket_manager import ws_manager
 
 router = APIRouter(prefix="/receptions", tags=["Reception - Tiếp đón"])
@@ -67,8 +68,8 @@ async def scan_cccd(
     - Đã có trong hệ thống → trả về thông tin hiện có.
     - Chưa có → tạo mới từ dữ liệu CCCD, sinh patient_code tự động.
     """
-    patient_create = PatientCreate(**obj_in.model_dump())
-    patient, is_new = await crud_patient.get_or_create_by_cccd(db, obj_in=patient_create)
+    # ScanCCCDRequest extends PatientCreate — pass directly, no need to reconstruct
+    patient, is_new = await crud_patient.get_or_create_by_cccd(db, obj_in=obj_in)
     return ScanCCCDResponse(
         patient=patient,
         is_new_patient=is_new,
@@ -169,7 +170,6 @@ async def list_receptions(
     page_size:     int            = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
 ):
-    from app.models.reception import ReceptionStatus
     status_enum = None
     if status_filter:
         try:
@@ -256,7 +256,6 @@ async def check_in(
     if not reception:
         raise HTTPException(status_code=404, detail="Không tìm thấy thông tin tiếp đón")
 
-    from app.models.reception import ReceptionStatus
     if reception.status != ReceptionStatus.PENDING:
         raise HTTPException(
             status_code=400,

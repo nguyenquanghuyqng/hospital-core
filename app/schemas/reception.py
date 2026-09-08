@@ -3,6 +3,7 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 from app.models.reception import ReceptionStatus
+from app.models.enums import VisitStatus
 from app.schemas.patient import PatientCreate, PatientResponse, PatientList
 
 
@@ -134,6 +135,7 @@ class ReceptionResponse(BaseModel):
     visit_date: date
     visit_time: Optional[str]  = None
     status:     ReceptionStatus
+    visit_status: VisitStatus  = VisitStatus.WAITING
 
     clinic_room:  Optional[str] = None
     visit_number: Optional[int] = None

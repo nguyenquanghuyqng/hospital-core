@@ -11,7 +11,7 @@ from sqlalchemy.orm import relationship
 
 from app.db.base import Base
 from app.models.base_model import TimestampMixin
-from app.models.enums import ReceptionStatus, reception_status_type
+from app.models.enums import ReceptionStatus, reception_status_type, VisitStatus, visit_status_type
 
 
 class Reception(Base, TimestampMixin):
@@ -71,6 +71,14 @@ class Reception(Base, TimestampMixin):
         nullable=False,
         default=ReceptionStatus.PENDING,
         server_default=ReceptionStatus.PENDING.value,
+    )
+
+    # ── Trạng thái xử lý tại phòng khám bác sĩ ───────────────────────
+    visit_status = Column(
+        visit_status_type,
+        nullable=False,
+        default=VisitStatus.WAITING,
+        server_default=VisitStatus.WAITING.value,
     )
 
     # ── Lâm sàng ──────────────────────────────────────────────────────

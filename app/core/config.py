@@ -12,6 +12,10 @@ class Settings(BaseSettings):
 
     SECRET_KEY: str = "changeme-in-production"
 
+    # JWT
+    JWT_ALGORITHM: str = "HS256"
+    JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 480  # 8 giờ
+
     class Config:
         env_file = ".env"
         case_sensitive = True

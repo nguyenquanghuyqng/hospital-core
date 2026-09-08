@@ -56,3 +56,85 @@ reception_status_type = sa.Enum(
     create_type=False,
     values_callable=lambda enum_class: [e.value for e in enum_class],
 )
+
+
+# ─── Visit Status (trạng thái xử lý tại phòng khám) ──────────────────────────
+
+class VisitStatus(str, enum.Enum):
+    """Trạng thái xử lý bệnh nhân tại phòng khám bác sĩ."""
+    WAITING    = "waiting"     # Chờ khám (mặc định)
+    CLS        = "cls"         # Đi làm CLS (cận lâm sàng)
+    CLS_RESULT = "cls_result"  # Có kết quả CLS
+    REVISIT    = "revisit"     # Tái khám
+    DONE       = "done"        # Đã khám xong
+
+
+visit_status_type = sa.Enum(
+    VisitStatus,
+    name="visit_status",
+    native_enum=True,
+    create_type=False,
+    values_callable=lambda enum_class: [e.value for e in enum_class],
+)
+
+
+# ─── Examination (Phiếu khám bệnh) ───────────────────────────────────────────
+
+class ExaminationStatus(str, enum.Enum):
+    """Trạng thái phiếu khám."""
+    DRAFT     = "draft"      # Đang nhập liệu
+    SAVED     = "saved"      # Đã lưu tạm
+    COMPLETED = "completed"  # Kết thúc khám
+
+
+class DispositionType(str, enum.Enum):
+    """Hướng xử trí sau khám (loại trừ lẫn nhau)."""
+    EMERGENCY        = "emergency"        # Cấp cứu
+    OUTPATIENT       = "outpatient"       # Điều trị ngoại trú
+    REVISIT          = "revisit"          # Hẹn tái khám
+    INPATIENT_WARD   = "inpatient_ward"   # Chuyển phòng lưu
+    INPATIENT        = "inpatient"        # Nhập viện
+    TRANSFER_OUT     = "transfer_out"     # Chuyển tuyến
+    DECEASED         = "deceased"         # Tử vong
+    TRANSFER_CLINIC  = "transfer_clinic"  # Chuyển phòng khám
+    LEAVE_AMA        = "leave_ama"        # Bỏ về
+    DISCHARGED       = "discharged"       # Khám xong cho về
+    CHRONIC_SCRIPT   = "chronic_script"   # Cấp toa bệnh mãn tính
+
+
+class PaymentType(str, enum.Enum):
+    """Loại chi trả cho từng dòng chỉ định/kê đơn."""
+    BHYT      = "bhyt"       # BHYT
+    FEE       = "fee"        # Thu phí
+    REQUEST   = "request"    # Yêu cầu
+    HEALTH    = "health"     # Khám sức khoẻ
+    CONSUME   = "consume"    # Hao phí
+    UNDER6    = "under6"     # Trẻ dưới 6 tuổi
+    VACCINE   = "vaccine"    # Tiêm chủng
+    FREE      = "free"       # Miễn
+    DEFER     = "defer"      # Trả sau
+
+
+examination_status_type = sa.Enum(
+    ExaminationStatus,
+    name="examination_status",
+    native_enum=True,
+    create_type=False,
+    values_callable=lambda enum_class: [e.value for e in enum_class],
+)
+
+disposition_type_col = sa.Enum(
+    DispositionType,
+    name="disposition_type",
+    native_enum=True,
+    create_type=False,
+    values_callable=lambda enum_class: [e.value for e in enum_class],
+)
+
+payment_type_col = sa.Enum(
+    PaymentType,
+    name="payment_type",
+    native_enum=True,
+    create_type=False,
+    values_callable=lambda enum_class: [e.value for e in enum_class],
+)
