@@ -131,6 +131,7 @@ class Reception(Base, TimestampMixin):
     # ── Nhân viên & ghi chú ───────────────────────────────────────────
     receptionist_name = Column(String(100), nullable=True, comment="Nhân viên tiếp đón")
     internal_note     = Column(Text, nullable=True)
+    updated_by        = Column(String(100), nullable=True, comment="Username thực hiện cập nhật cuối")
 
     # ── Quan hệ ───────────────────────────────────────────────────────
     patient_id = Column(

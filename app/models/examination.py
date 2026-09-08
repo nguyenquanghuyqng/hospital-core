@@ -92,6 +92,7 @@ class Examination(Base, TimestampMixin):
     # ── Thông tin khám ────────────────────────────────────────────────────────
     doctor_name = Column(String(100), nullable=True, comment="Bác sĩ điều trị")
     nurse_name  = Column(String(100), nullable=True, comment="Điều dưỡng phụ trách")
+    updated_by  = Column(String(100), nullable=True, comment="Username thực hiện cập nhật cuối")
 
     # Biến chứng
     complications = Column(Text, nullable=True, comment="Biến chứng")

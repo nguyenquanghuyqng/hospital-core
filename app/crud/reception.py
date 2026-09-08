@@ -293,9 +293,10 @@ class CRUDReception(CRUDBase[Reception]):
         self, db: AsyncSession, *, reception: Reception
     ) -> Reception:
         """
-        Chuyển lượt tiếp đón sang trạng thái COMPLETED.
+        Chuyển lượt tiếp đón sang trạng thái COMPLETED và VisitStatus → DONE.
 
         Ghi ``completed_at`` = thời điểm hiện tại.
+        Đặt ``visit_status = DONE`` để đồng bộ trạng thái xử lý tại phòng khám.
 
         Args:
             db: Async database session.
@@ -304,7 +305,9 @@ class CRUDReception(CRUDBase[Reception]):
         Returns:
             :class:`~app.models.reception.Reception` đã cập nhật sang COMPLETED.
         """
+        from app.models.enums import VisitStatus  # local import tránh circular
         reception.status       = ReceptionStatus.COMPLETED
+        reception.visit_status = VisitStatus.DONE
         reception.completed_at = datetime.now(timezone.utc)
         db.add(reception)
         await db.flush()

@@ -9,6 +9,10 @@ from app.schemas.reception import (
     ReceptionCreate, ReceptionUpdate, ReceptionResponse, ReceptionList,
     ReceptionCheckIn,
 )
+from app.schemas.doctor import (
+    QueueItem, QueueStatsResponse, PatientSummary,
+    VisitStatusUpdate, TransferRequest,
+)
 from app.schemas.common import PaginatedResponse, MessageResponse
 
 __all__ = [
@@ -17,5 +21,7 @@ __all__ = [
     "QueueTicketStatusUpdate", "QueueDisplayItem",
     "ReceptionCreate", "ReceptionUpdate", "ReceptionResponse", "ReceptionList",
     "ReceptionCheckIn",
+    "QueueItem", "QueueStatsResponse", "PatientSummary",
+    "VisitStatusUpdate", "TransferRequest",
     "PaginatedResponse", "MessageResponse",
 ]

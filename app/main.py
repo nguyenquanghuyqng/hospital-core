@@ -3,6 +3,8 @@ Entry point của ứng dụng FastAPI — Hospital Queue Management System.
 
 Khởi tạo FastAPI app với:
 - CORS middleware (wildcard trong development, cần thu hẹp khi lên production).
+- Request logging middleware: ghi log mọi request với method, path, status, latency.
+- Global exception handler: trả JSON chuẩn cho mọi lỗi không được xử lý.
 - Static files tại ``/static`` (CSS, JS, assets frontend).
 - Jinja2 templates cho các trang HTML frontend (SPA đơn giản).
 - API router v1 tại ``/api/v1``.
@@ -11,11 +13,13 @@ Khởi tạo FastAPI app với:
 """
 import logging
 import os
+import time
+import traceback
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -70,6 +74,75 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# ── Request Logging Middleware ────────────────────────────────────────────────
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    """
+    Middleware ghi log mọi HTTP request với method, path, status code và latency.
+
+    Giúp quan sát hoạt động hệ thống (observability) và debug trong production.
+    Các path ``/health``, ``/static``, ``/docs``, ``/redoc``, ``/openapi.json``
+    được bỏ qua để không làm nhiễu log.
+
+    Args:
+        request: FastAPI Request object.
+        call_next: Callable chuyển request xuống handler tiếp theo.
+
+    Returns:
+        Response từ handler được bọc thêm thời gian xử lý trong header.
+    """
+    skip_paths = {"/health", "/docs", "/redoc", "/openapi.json"}
+    if request.url.path in skip_paths or request.url.path.startswith("/static"):
+        return await call_next(request)
+
+    start = time.perf_counter()
+    response = await call_next(request)
+    latency_ms = (time.perf_counter() - start) * 1000
+
+    logger.info(
+        "%-6s %-40s %d  %.1fms",
+        request.method,
+        request.url.path,
+        response.status_code,
+        latency_ms,
+    )
+    response.headers["X-Process-Time-Ms"] = f"{latency_ms:.1f}"
+    return response
+
+
+# ── Global Exception Handler ──────────────────────────────────────────────────
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    """
+    Bắt tất cả exception không được xử lý, trả JSON chuẩn và log traceback.
+
+    Ngăn FastAPI trả HTML 500 mặc định, đảm bảo client luôn nhận JSON
+    dù xảy ra lỗi bất ngờ. Traceback đầy đủ được ghi vào log ở mức ERROR.
+
+    Args:
+        request: FastAPI Request object.
+        exc: Exception không được xử lý.
+
+    Returns:
+        JSONResponse với status 500 và thông báo lỗi.
+    """
+    tb = traceback.format_exc()
+    logger.error(
+        "Unhandled exception | %s %s\n%s",
+        request.method,
+        request.url.path,
+        tb,
+    )
+    return JSONResponse(
+        status_code=500,
+        content={
+            "detail": "Lỗi hệ thống nội bộ. Vui lòng thử lại hoặc liên hệ quản trị viên.",
+            "path": str(request.url.path),
+        },
+    )
+
 
 # ── Static files & Templates ──────────────────────────────────────────────────
 static_dir    = os.path.join(os.path.dirname(__file__), "static")

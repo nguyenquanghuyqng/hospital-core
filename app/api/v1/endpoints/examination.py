@@ -20,7 +20,6 @@ Routes:
   DELETE /examinations/{id}/items/{iid}       — Xoá kê đơn / CLS
 """
 import logging
-from datetime import datetime, timezone
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -32,7 +31,7 @@ from app.db.session import get_db
 from app.core.deps import require_doctor
 from app.models.user import User
 from app.models.examination import Diagnosis, PrescriptionItem
-from app.models.enums import ExaminationStatus, ReceptionStatus, VisitStatus
+from app.models.enums import ExaminationStatus, VisitStatus
 from app.crud.examination import crud_examination
 from app.crud.reception import crud_reception
 from app.schemas.examination import (
@@ -433,13 +432,10 @@ async def complete_examination(
 
     completed = await crud_examination.complete_examination(db, db_obj=exam)
 
+    # Uỷ quyền hoàn tất reception cho CRUD layer — không mutate trực tiếp tại đây
     reception = await crud_reception.get(db, exam.reception_id)
     if reception and reception.status != ReceptionStatus.COMPLETED:
-        reception.status       = ReceptionStatus.COMPLETED
-        reception.visit_status = VisitStatus.DONE
-        reception.completed_at = datetime.now(timezone.utc)
-        db.add(reception)
-        await db.flush()
+        await crud_reception.complete_reception(db, reception=reception)
         await _broadcast_queue_update(reception.id, VisitStatus.DONE, reception.clinic_room)
 
     return completed

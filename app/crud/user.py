@@ -3,13 +3,17 @@ CRUD operations cho model :class:`~app.models.user.User`.
 
 Cung cấp các thao tác tra cứu, tạo mới và xác thực tài khoản người dùng.
 """
+import logging
 from typing import Optional
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud.base import CRUDBase
 from app.models.user import User
 from app.core.security import hash_password, verify_password
+
+logger = logging.getLogger(__name__)
 
 
 class CRUDUser(CRUDBase[User]):
@@ -77,6 +81,8 @@ class CRUDUser(CRUDBase[User]):
         Xác thực thông tin đăng nhập (username + password).
 
         Tra cứu user theo username, sau đó kiểm tra mật khẩu bằng bcrypt.
+        Ghi log cảnh báo mỗi lần đăng nhập thất bại để hỗ trợ phát hiện
+        brute-force và audit trail bảo mật.
 
         Args:
             db: Async database session.
@@ -88,9 +94,16 @@ class CRUDUser(CRUDBase[User]):
             ``None`` nếu username không tồn tại hoặc mật khẩu sai.
         """
         user = await self.get_by_username(db, username)
-        if user and verify_password(password, user.hashed_password):
-            return user
-        return None
+        if not user:
+            logger.warning("auth_failed | reason=user_not_found username=%s", username)
+            return None
+        if not verify_password(password, user.hashed_password):
+            logger.warning(
+                "auth_failed | reason=wrong_password username=%s user_id=%s",
+                username, user.id,
+            )
+            return None
+        return user
 
 
 crud_user = CRUDUser(User)
