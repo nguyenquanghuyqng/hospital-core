@@ -1,5 +1,9 @@
 """
-FastAPI dependencies shared across all endpoints.
+FastAPI dependencies dùng chung cho tất cả endpoints.
+
+Cung cấp các dependency injection functions để:
+- Xác thực người dùng từ Bearer JWT token.
+- Phân quyền theo role (doctor / admin).
 """
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
@@ -20,6 +24,25 @@ async def get_current_user(
     token: str = Depends(oauth2_scheme),
     db: AsyncSession = Depends(get_db),
 ) -> User:
+    """
+    Dependency: xác thực Bearer JWT và trả về user đang đăng nhập.
+
+    Luồng xử lý:
+    1. Trích xuất token từ header ``Authorization: Bearer <token>``.
+    2. Giải mã JWT, lấy ``sub`` (user id).
+    3. Tra cứu user trong database.
+    4. Kiểm tra user tồn tại và đang active.
+
+    Args:
+        token: JWT access token từ OAuth2 bearer scheme.
+        db: Async database session (injected).
+
+    Returns:
+        Đối tượng :class:`User` tương ứng với token.
+
+    Raises:
+        HTTPException 401: Token không hợp lệ, hết hạn, hoặc user không tồn tại / bị khoá.
+    """
     credentials_exc = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Token không hợp lệ hoặc đã hết hạn",
@@ -44,7 +67,20 @@ async def get_current_user(
 
 
 async def require_doctor(current_user: User = Depends(get_current_user)) -> User:
-    """Allow only doctor and admin roles."""
+    """
+    Dependency: chỉ cho phép role ``doctor`` hoặc ``admin`` truy cập.
+
+    Được dùng trên các endpoint lâm sàng (phiếu khám, hàng đợi bác sĩ, v.v.).
+
+    Args:
+        current_user: User đã xác thực (injected từ :func:`get_current_user`).
+
+    Returns:
+        Đối tượng :class:`User` nếu role hợp lệ.
+
+    Raises:
+        HTTPException 403: User không có role doctor hoặc admin.
+    """
     if current_user.role not in _DOCTOR_ROLES:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

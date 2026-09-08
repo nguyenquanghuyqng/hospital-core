@@ -1,8 +1,30 @@
+"""
+Cấu hình ứng dụng — đọc từ file .env hoặc biến môi trường.
+
+Sử dụng pydantic-settings để tự động parse và validate giá trị cấu hình.
+"""
 from pydantic_settings import BaseSettings
 from typing import Optional
 
 
 class Settings(BaseSettings):
+    """
+    Lớp cấu hình trung tâm của ứng dụng.
+
+    Các giá trị được đọc từ file .env (hoặc biến môi trường).
+    Tất cả thuộc tính có giá trị mặc định, phù hợp môi trường development.
+
+    Attributes:
+        APP_NAME: Tên hiển thị của ứng dụng.
+        APP_VERSION: Phiên bản ứng dụng.
+        DEBUG: Bật/tắt chế độ debug (ảnh hưởng log level và SQL echo).
+        DATABASE_URL: Connection string async (asyncpg) — dùng cho FastAPI.
+        DATABASE_SYNC_URL: Connection string đồng bộ (psycopg2) — dùng cho Alembic migration.
+        SECRET_KEY: Khoá bí mật ký JWT. Phải thay đổi trong production.
+        JWT_ALGORITHM: Thuật toán ký JWT (mặc định HS256).
+        JWT_ACCESS_TOKEN_EXPIRE_MINUTES: Thời gian sống của access token (phút).
+    """
+
     APP_NAME: str = "Hospital Queue Management System"
     APP_VERSION: str = "1.0.0"
     DEBUG: bool = True
@@ -17,6 +39,8 @@ class Settings(BaseSettings):
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 480  # 8 giờ
 
     class Config:
+        """Pydantic config: đọc từ file .env, phân biệt chữ hoa/thường."""
+
         env_file = ".env"
         case_sensitive = True
 

@@ -1,3 +1,9 @@
+"""
+Pydantic schemas cho lượt tiếp đón bệnh nhân.
+
+Bao gồm schemas cho tạo mới, cập nhật, check-in, response chi tiết,
+response danh sách, và thống kê theo phòng khám.
+"""
 from datetime import date, datetime
 from typing import Optional
 from pydantic import BaseModel, Field
@@ -7,75 +13,100 @@ from app.models.enums import VisitStatus
 from app.schemas.patient import PatientCreate, PatientResponse, PatientList
 
 
-# ─────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────
 # Create
-# ─────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────
+
 class ReceptionCreate(BaseModel):
     """
-    Schema tạo mới một lần tiếp đón.
-    Nhân viên có thể nhập patient_id (đã có) hoặc patient_data (bệnh nhân mới).
+    Schema tạo mới một lượt tiếp đón.
+
+    Nhân viên tiếp đón có thể cung cấp bệnh nhân theo hai cách:
+    - ``patient_id``: dùng bệnh nhân đã có trong hệ thống.
+    - ``patient_data``: tạo bệnh nhân mới đồng thời với lượt tiếp đón.
+
+    ``visit_date``, ``visit_time``, và ``visit_number`` được server tự sinh
+    nếu không truyền vào.
+
+    Attributes:
+        patient_id: ID bệnh nhân đã tồn tại (tuỳ chọn nếu dùng patient_data).
+        patient_data: Dữ liệu bệnh nhân mới cần tạo đồng thời (tuỳ chọn).
+        visit_time: Giờ đăng ký ``HH:MM`` (tự sinh nếu để trống).
+        clinic_room: Phòng khám được chỉ định.
+        visit_number: Số khám trong ngày/phòng (tự sinh nếu để trống).
+        priority: Độ ưu tiên — ``0`` thường, ``1`` ưu tiên, ``2`` cấp cứu.
+        subject_type: Mã đối tượng BHYT (``"1"`` = BHYT, ``"2"`` = dịch vụ…).
     """
-    # ── Bệnh nhân ────────────────────────────────────────────────────
+
+    # ── Bệnh nhân ─────────────────────────────────────────────────────────────
     patient_id:   Optional[int]           = Field(None, description="ID bệnh nhân đã có")
     patient_data: Optional[PatientCreate] = Field(None, description="Tạo bệnh nhân mới đồng thời")
 
-    # ── II. Ngày giờ đăng ký ─────────────────────────────────────────
-    visit_time:  Optional[str] = Field(None, max_length=8,  description="Giờ đăng ký (HH:MM)")
+    # ── Ngày giờ đăng ký ──────────────────────────────────────────────────────
+    visit_time:  Optional[str] = Field(None, max_length=8, description="Giờ đăng ký (HH:MM)")
 
-    # ── Phòng khám & số khám ─────────────────────────────────────────
+    # ── Phòng khám & số khám ──────────────────────────────────────────────────
     clinic_room:  Optional[str] = Field(None, max_length=50, description="Phòng khám")
     visit_number: Optional[int] = Field(None, description="Số khám")
 
-    # ── Cờ loại đăng ký ──────────────────────────────────────────────
+    # ── Cờ loại đăng ký ───────────────────────────────────────────────────────
     is_appointment: bool = Field(False, description="Hẹn khám")
     is_online:      bool = Field(False, description="Đăng ký online")
     is_referral:    bool = Field(False, description="Chuyển tuyến")
 
-    # ── Đối tượng BHYT ───────────────────────────────────────────────
+    # ── Đối tượng BHYT ────────────────────────────────────────────────────────
     subject_type: Optional[str] = Field(None, max_length=10,  description="Mã đối tượng (1=BHYT, 2=DV...)")
     subject_name: Optional[str] = Field(None, max_length=100, description="Tên đối tượng")
 
-    # ── Thẻ BHYT ─────────────────────────────────────────────────────
+    # ── Thẻ BHYT ──────────────────────────────────────────────────────────────
     insurance_number:     Optional[str]  = Field(None, max_length=20, description="Số thẻ BHYT")
     insurance_valid_from: Optional[date] = Field(None, description="Từ ngày hạn thẻ BHYT")
     insurance_valid_to:   Optional[date] = Field(None, description="Đến ngày hạn thẻ BHYT")
 
-    # ── ĐKKCB & giới thiệu ───────────────────────────────────────────
+    # ── ĐKKCB & giới thiệu ────────────────────────────────────────────────────
     initial_registration: Optional[str] = Field(None, max_length=200, description="Nơi ĐKKCB ban đầu")
     referral_note:        Optional[str] = Field(None, description="Giới thiệu")
     referral_facility:    Optional[str] = Field(None, max_length=200, description="Cơ sở giới thiệu/chuyển tuyến")
 
-    # ── Quyền lợi đặc biệt ───────────────────────────────────────────
-    high_tech_service:    bool           = Field(False, description="Được hưởng DVKT cao")
-    insurance_5years:     bool           = Field(False, description="BHYT > 5 năm")
+    # ── Quyền lợi đặc biệt ────────────────────────────────────────────────────
+    high_tech_service:     bool           = Field(False, description="Được hưởng DVKT cao")
+    insurance_5years:      bool           = Field(False, description="BHYT > 5 năm")
     insurance_5years_date: Optional[date] = Field(None, description="Ngày bắt đầu tính BHYT > 5 năm")
 
-    # ── Trạng thái đặc biệt & nghèo ──────────────────────────────────
+    # ── Trạng thái đặc biệt & nghèo ───────────────────────────────────────────
     special_status: Optional[str] = Field(None, max_length=100, description="Trạng thái đặc biệt")
     is_near_poor:   bool           = Field(False, description="Hộ cận nghèo")
     is_poor:        bool           = Field(False, description="Hộ nghèo")
 
-    # ── Phân loại bệnh nhân ───────────────────────────────────────────
+    # ── Phân loại bệnh nhân ───────────────────────────────────────────────────
     patient_category: Optional[str] = Field(None, max_length=50, description="Người lớn / Trẻ em")
     patient_type:     Optional[str] = Field(None, max_length=10,  description="Mới / Cũ")
 
-    # ── Lâm sàng (giữ tương thích) ───────────────────────────────────
+    # ── Lâm sàng ──────────────────────────────────────────────────────────────
     reason:      Optional[str] = Field(None, description="Lý do khám / triệu chứng")
     department:  Optional[str] = Field(None, max_length=100)
     doctor_name: Optional[str] = Field(None, max_length=100)
     priority:    int           = Field(0, ge=0, le=2, description="0=thường, 1=ưu tiên, 2=cấp cứu")
 
-    # ── Liên kết & nhân viên ─────────────────────────────────────────
+    # ── Liên kết & nhân viên ──────────────────────────────────────────────────
     queue_ticket_id:   Optional[int] = Field(None, description="ID số thứ tự")
     receptionist_name: Optional[str] = Field(None, max_length=100)
     internal_note:     Optional[str] = None
 
 
-# ─────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────
 # Update
-# ─────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────
+
 class ReceptionUpdate(BaseModel):
-    """Schema cập nhật tiếp đón — tất cả optional."""
+    """
+    Schema cập nhật lượt tiếp đón — tất cả fields optional.
+
+    Chỉ các fields được truyền vào mới được cập nhật (partial update).
+    Không thể thay đổi ``patient_id``, ``visit_date``, hoặc ``status``
+    thông qua endpoint update thông thường — dùng workflow endpoints thay thế.
+    """
+
     visit_time:  Optional[str] = Field(None, max_length=8)
     clinic_room: Optional[str] = Field(None, max_length=50)
     visit_number: Optional[int] = None
@@ -96,8 +127,8 @@ class ReceptionUpdate(BaseModel):
     referral_note:        Optional[str] = None
     referral_facility:    Optional[str] = Field(None, max_length=200)
 
-    high_tech_service:    Optional[bool] = None
-    insurance_5years:     Optional[bool] = None
+    high_tech_service:     Optional[bool] = None
+    insurance_5years:      Optional[bool] = None
     insurance_5years_date: Optional[date] = None
 
     special_status: Optional[str] = Field(None, max_length=100)
@@ -116,21 +147,42 @@ class ReceptionUpdate(BaseModel):
     internal_note:     Optional[str] = None
 
 
-# ─────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────
 # Check-in
-# ─────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────
+
 class ReceptionCheckIn(BaseModel):
-    """Schema check-in: PENDING → CHECKED_IN."""
+    """
+    Schema cho thao tác check-in: PENDING → CHECKED_IN.
+
+    Nhân viên tiếp đón xác nhận bệnh nhân đã có mặt.
+    Tuỳ chọn gán số thứ tự, ghi tên nhân viên, và ghi chú nội bộ.
+
+    Attributes:
+        queue_ticket_id: ID số thứ tự cần gán cho lượt tiếp đón (tuỳ chọn).
+        receptionist_name: Tên nhân viên thực hiện check-in (tuỳ chọn).
+        internal_note: Ghi chú nội bộ (không hiển thị cho bệnh nhân).
+    """
+
     queue_ticket_id:   Optional[int] = Field(None, description="Gán số thứ tự")
     receptionist_name: Optional[str] = Field(None, max_length=100)
     internal_note:     Optional[str] = None
 
 
-# ─────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────
 # Response
-# ─────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────
+
 class ReceptionResponse(BaseModel):
-    """Schema trả về chi tiết đầy đủ một lần tiếp đón."""
+    """
+    Schema response chi tiết đầy đủ một lượt tiếp đón.
+
+    Bao gồm tất cả thông tin hành chính, bảo hiểm, trạng thái,
+    và nested object ``patient`` (dạng :class:`~app.schemas.patient.PatientList`).
+
+    Config ``from_attributes=True`` cho phép tạo trực tiếp từ SQLAlchemy model.
+    """
+
     id:         int
     visit_date: date
     visit_time: Optional[str]  = None
@@ -156,8 +208,8 @@ class ReceptionResponse(BaseModel):
     referral_note:        Optional[str] = None
     referral_facility:    Optional[str] = None
 
-    high_tech_service:    bool           = False
-    insurance_5years:     bool           = False
+    high_tech_service:     bool           = False
+    insurance_5years:      bool           = False
     insurance_5years_date: Optional[date] = None
 
     special_status: Optional[str] = None
@@ -183,14 +235,20 @@ class ReceptionResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    # Nested
+    # Nested object
     patient: Optional[PatientList] = None
 
     model_config = {"from_attributes": True}
 
 
 class ReceptionList(BaseModel):
-    """Schema tóm tắt cho bảng danh sách tiếp đón."""
+    """
+    Schema tóm tắt lượt tiếp đón — dùng cho bảng danh sách.
+
+    Bao gồm nested object ``patient`` để hiển thị tên bệnh nhân
+    mà không cần query riêng. Bỏ qua các fields chi tiết bảo hiểm và địa chỉ.
+    """
+
     id:         int
     visit_date: date
     visit_time: Optional[str]    = None
@@ -212,21 +270,45 @@ class ReceptionList(BaseModel):
     model_config = {"from_attributes": True}
 
 
-# ─────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────
 # Thống kê phòng khám
-# ─────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────
+
 class ClinicRoomStat(BaseModel):
-    """Thống kê số lượt khám theo phòng khám."""
+    """
+    Thống kê số lượt khám của một phòng khám trong ngày.
+
+    Attributes:
+        clinic_room: Tên / mã phòng khám.
+        total: Tổng số lượt đăng ký.
+        pending: Số lượt chưa tiếp nhận (PENDING).
+        bhyt: Số lượt đối tượng BHYT (subject_type = ``"1"``).
+        service: Số lượt dịch vụ (subject_type ≠ ``"1"``).
+    """
+
     clinic_room: str
-    total:  int = 0
+    total:   int = 0
     pending: int = 0
     bhyt:    int = 0
-    service: int = 0   # Dịch vụ (không BHYT)
+    service: int = 0
+
 
 class ClinicRoomStatResponse(BaseModel):
-    """Response bảng thống kê toàn bộ phòng khám."""
+    """
+    Response bảng thống kê toàn bộ phòng khám trong ngày.
+
+    Trả về danh sách thống kê từng phòng kèm tổng cộng toàn bệnh viện.
+
+    Attributes:
+        rooms: Danh sách :class:`ClinicRoomStat` cho từng phòng.
+        total_all: Tổng lượt khám toàn bệnh viện.
+        total_pending: Tổng chưa tiếp nhận.
+        total_bhyt: Tổng lượt BHYT.
+        total_service: Tổng lượt dịch vụ.
+    """
+
     rooms: list[ClinicRoomStat]
-    total_all:    int = 0
+    total_all:     int = 0
     total_pending: int = 0
-    total_bhyt:   int = 0
+    total_bhyt:    int = 0
     total_service: int = 0

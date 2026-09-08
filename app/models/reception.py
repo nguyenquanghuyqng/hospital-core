@@ -1,7 +1,18 @@
 """
-Model tiếp đón — lưu đầy đủ thông tin đăng ký khám bệnh theo chuẩn bệnh viện Việt Nam.
+ORM model tiếp đón — lưu đầy đủ thông tin đăng ký khám bệnh theo chuẩn bệnh viện Việt Nam.
 
-Liên kết 1-1 với QueueTicket sau khi nhân viên tiếp đón check-in.
+Một ``Reception`` đại diện cho một lượt đăng ký khám của bệnh nhân trong một ngày.
+Sau khi nhân viên check-in, reception được liên kết với một :class:`QueueTicket`
+và sau đó với một :class:`Examination` khi bác sĩ bắt đầu khám.
+
+Luồng trạng thái (``status``)::
+
+    PENDING → CHECKED_IN → COMPLETED
+                         ↘ CANCELLED
+
+Luồng xử lý tại phòng khám bác sĩ (``visit_status``)::
+
+    WAITING → CLS → CLS_RESULT → REVISIT → DONE
 """
 from sqlalchemy import (
     Column, Integer, String, DateTime, ForeignKey,
@@ -15,6 +26,29 @@ from app.models.enums import ReceptionStatus, reception_status_type, VisitStatus
 
 
 class Reception(Base, TimestampMixin):
+    """
+    Bảng ``receptions`` — lượt đăng ký khám bệnh.
+
+    Lưu đầy đủ các thông tin hành chính, bảo hiểm, và lâm sàng cần thiết
+    cho một lượt khám bệnh theo quy trình bệnh viện.
+
+    Attributes:
+        id: Khoá chính tự tăng.
+        visit_date: Ngày đăng ký khám (mặc định hôm nay).
+        visit_time: Giờ đăng ký dạng ``HH:MM``.
+        clinic_room: Phòng khám được chỉ định.
+        visit_number: Số thứ tự khám trong ngày theo phòng (tự sinh).
+        status: Trạng thái tiếp đón — xem :class:`~app.models.enums.ReceptionStatus`.
+        visit_status: Trạng thái xử lý tại phòng khám — xem :class:`~app.models.enums.VisitStatus`.
+        priority: Độ ưu tiên — ``0`` = bình thường, ``1`` = ưu tiên, ``2`` = cấp cứu.
+        patient_id: FK bắt buộc tới ``patients``.
+        queue_ticket_id: FK tới ``queue_tickets`` (gán khi check-in, unique 1-1).
+
+    Relationships:
+        patient: Bệnh nhân đăng ký khám.
+        queue_ticket: Số thứ tự hàng chờ (1-1, tuỳ chọn).
+    """
+
     __tablename__ = "receptions"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -65,7 +99,7 @@ class Reception(Base, TimestampMixin):
     patient_category = Column(String(50), nullable=True, comment="Người lớn / Trẻ em")
     patient_type     = Column(String(10), nullable=True, comment="Mới / Cũ")
 
-    # ── Trạng thái tiếp đón — dùng singleton type từ enums.py ─────────
+    # ── Trạng thái tiếp đón ───────────────────────────────────────────
     status = Column(
         reception_status_type,
         nullable=False,
@@ -112,4 +146,5 @@ class Reception(Base, TimestampMixin):
     queue_ticket = relationship("QueueTicket", back_populates="reception")
 
     def __repr__(self) -> str:
+        """Trả về chuỗi đại diện ngắn gọn cho debugging."""
         return f"<Reception id={self.id} patient_id={self.patient_id} status={self.status}>"

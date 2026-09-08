@@ -1,9 +1,14 @@
 """
-Model số thứ tự hàng chờ.
+ORM model số thứ tự hàng chờ.
 
-Luồng trạng thái:
-  WAITING → CALLING → SERVING → DONE
-                    ↘ SKIPPED  (bỏ qua, gọi không có mặt)
+Mỗi ``QueueTicket`` đại diện cho một lượt lấy số của bệnh nhân.
+Sequence được reset về 1 mỗi ngày; ticket_number hiển thị dạng prefix + số
+(VD: A001, A002…) trên màn hình LED.
+
+Luồng trạng thái::
+
+    WAITING → CALLING → SERVING → DONE
+                      ↘ SKIPPED   (gọi không có mặt)
 """
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, Date, func
 from sqlalchemy.orm import relationship
@@ -14,6 +19,30 @@ from app.models.enums import QueueStatus, queue_status_type
 
 
 class QueueTicket(Base, TimestampMixin):
+    """
+    Bảng ``queue_tickets`` — số thứ tự hàng chờ.
+
+    Attributes:
+        id: Khoá chính tự tăng.
+        ticket_number: Mã số hiển thị trên màn hình LED (VD: ``A001``).
+            Kết hợp prefix + sequence 3 chữ số.
+        sequence: Số thứ tự nguyên dùng để sắp xếp trong ngày.
+            Reset về 1 mỗi ngày mới.
+        issue_date: Ngày cấp số. Dùng để nhóm và reset sequence theo ngày.
+        status: Trạng thái hiện tại — xem :class:`~app.models.enums.QueueStatus`.
+        service_type: Loại dịch vụ / quầy (tuỳ chọn, VD: ``general``, ``lab``).
+        counter_number: Số quầy đang phục vụ (được gán khi gọi số).
+        called_at: Thời điểm số được gọi (CALLING).
+        served_at: Thời điểm số bắt đầu được phục vụ (SERVING).
+        done_at: Thời điểm kết thúc (DONE hoặc SKIPPED).
+        note: Ghi chú thêm (tuỳ chọn).
+        patient_id: FK tới ``patients`` — có thể NULL nếu chưa liên kết BN.
+
+    Relationships:
+        patient: Bệnh nhân liên kết (nếu có).
+        reception: Lượt tiếp đón tương ứng (1-1, có thể NULL).
+    """
+
     __tablename__ = "queue_tickets"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -41,9 +70,9 @@ class QueueTicket(Base, TimestampMixin):
 
     # Loại dịch vụ / quầy
     service_type   = Column(String(50), nullable=True, comment="Loại dịch vụ")
-    counter_number = Column(Integer, nullable=True, comment="Số quầy phục vụ")
+    counter_number = Column(Integer,    nullable=True, comment="Số quầy phục vụ")
 
-    # Thời điểm
+    # Thời điểm chuyển trạng thái
     called_at = Column(DateTime(timezone=True), nullable=True)
     served_at = Column(DateTime(timezone=True), nullable=True)
     done_at   = Column(DateTime(timezone=True), nullable=True)
@@ -55,8 +84,9 @@ class QueueTicket(Base, TimestampMixin):
         Integer, ForeignKey("patients.id", ondelete="SET NULL"),
         nullable=True, index=True,
     )
-    patient   = relationship("Patient", back_populates="queue_tickets")
+    patient   = relationship("Patient",   back_populates="queue_tickets")
     reception = relationship("Reception", back_populates="queue_ticket", uselist=False)
 
     def __repr__(self) -> str:
+        """Trả về chuỗi đại diện ngắn gọn cho debugging."""
         return f"<QueueTicket {self.ticket_number} status={self.status} date={self.issue_date}>"

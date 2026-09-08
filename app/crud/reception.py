@@ -1,6 +1,12 @@
-from datetime import date, datetime, timezone, time
+"""
+CRUD operations cho model :class:`~app.models.reception.Reception`.
+
+Quản lý toàn bộ vòng đời lượt tiếp đón: đăng ký, check-in,
+hoàn tất, huỷ, và các truy vấn thống kê theo ngày / phòng khám.
+"""
+from datetime import date, datetime, timezone
 from typing import List, Optional
-from sqlalchemy import select, and_, func, case, distinct
+from sqlalchemy import select, and_, func, case
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -11,8 +17,15 @@ from app.schemas.reception import ReceptionCreate, ReceptionUpdate, ReceptionChe
 
 
 class CRUDReception(CRUDBase[Reception]):
+    """
+    CRUD class cho Reception — kế thừa :class:`~app.crud.base.CRUDBase`.
 
-    # ── Tạo mới ─────────────────────────────────────────────────────
+    Bổ sung: tạo lượt tiếp đón với số khám tự tăng theo phòng/ngày,
+    truy vấn có eager-load bệnh nhân, workflow transitions
+    (check-in / complete / cancel), và thống kê theo ngày / phòng khám.
+    """
+
+    # ── Tạo mới ─────────────────────────────────────────────────────────────
 
     async def create_reception(
         self,
@@ -22,15 +35,26 @@ class CRUDReception(CRUDBase[Reception]):
         patient_id: int,
     ) -> Reception:
         """
-        Tạo một lần tiếp đón mới.
-        - visit_date = hôm nay
-        - visit_time = giờ hiện tại nếu không truyền vào
-        - visit_number tự tăng theo phòng khám trong ngày
+        Tạo lượt tiếp đón mới với tự động điền thời gian và số khám.
+
+        Thực hiện ba bước tự động:
+        1. Đặt ``visit_date`` = hôm nay.
+        2. Điền ``visit_time`` = giờ hiện tại nếu không được truyền vào.
+        3. Sinh ``visit_number`` tự tăng theo phòng khám trong ngày.
+
+        Args:
+            db: Async database session.
+            obj_in: Schema :class:`~app.schemas.reception.ReceptionCreate`.
+            patient_id: ID của bệnh nhân đã tồn tại trong database.
+
+        Returns:
+            :class:`~app.models.reception.Reception` vừa tạo với
+            ``status=PENDING``.
         """
         data = obj_in.model_dump(exclude={"patient_id", "patient_data"})
         data["patient_id"] = patient_id
         data["visit_date"] = date.today()
-        data["status"] = ReceptionStatus.PENDING
+        data["status"]     = ReceptionStatus.PENDING
 
         # Tự điền giờ đăng ký nếu không có
         if not data.get("visit_time"):
@@ -53,7 +77,20 @@ class CRUDReception(CRUDBase[Reception]):
         visit_date: date,
         clinic_room: str,
     ) -> int:
-        """Lấy số khám tiếp theo của phòng trong ngày."""
+        """
+        Lấy số khám tiếp theo của một phòng trong ngày.
+
+        Truy vấn ``MAX(visit_number)`` theo (visit_date, clinic_room)
+        rồi cộng thêm 1.
+
+        Args:
+            db: Async database session.
+            visit_date: Ngày khám cần tính.
+            clinic_room: Tên phòng khám cần tính.
+
+        Returns:
+            Số nguyên là số khám kế tiếp (bắt đầu từ 1 nếu phòng chưa có lượt nào).
+        """
         result = await db.execute(
             select(func.coalesce(func.max(Reception.visit_number), 0))
             .where(
@@ -65,12 +102,22 @@ class CRUDReception(CRUDBase[Reception]):
         )
         return (result.scalar_one() or 0) + 1
 
-    # ── Truy vấn ────────────────────────────────────────────────────
+    # ── Truy vấn ─────────────────────────────────────────────────────────────
 
     async def get_with_patient(
         self, db: AsyncSession, reception_id: int
     ) -> Optional[Reception]:
-        """Lấy chi tiết tiếp đón kèm thông tin bệnh nhân."""
+        """
+        Lấy chi tiết lượt tiếp đón kèm eager-load thông tin bệnh nhân.
+
+        Args:
+            db: Async database session.
+            reception_id: ID lượt tiếp đón.
+
+        Returns:
+            :class:`~app.models.reception.Reception` với ``patient`` đã load,
+            hoặc ``None`` nếu không tìm thấy.
+        """
         result = await db.execute(
             select(Reception)
             .options(selectinload(Reception.patient))
@@ -88,7 +135,23 @@ class CRUDReception(CRUDBase[Reception]):
         skip: int = 0,
         limit: int = 50,
     ) -> List[Reception]:
-        """Danh sách tiếp đón theo ngày, kèm thông tin bệnh nhân."""
+        """
+        Danh sách lượt tiếp đón theo ngày với eager-load bệnh nhân.
+
+        Kết quả được sắp xếp ưu tiên cao trước, sau đó theo ``visit_number``
+        tăng dần để phản ánh đúng thứ tự khám.
+
+        Args:
+            db: Async database session.
+            visit_date: Ngày khám cần truy vấn.
+            status: Lọc theo trạng thái tiếp đón (tuỳ chọn).
+            clinic_room: Lọc theo phòng khám (tuỳ chọn).
+            skip: Offset phân trang.
+            limit: Số bản ghi tối đa.
+
+        Returns:
+            Danh sách :class:`~app.models.reception.Reception` với ``patient`` đã load.
+        """
         query = (
             select(Reception)
             .options(selectinload(Reception.patient))
@@ -115,6 +178,20 @@ class CRUDReception(CRUDBase[Reception]):
         status: Optional[ReceptionStatus] = None,
         clinic_room: Optional[str] = None,
     ) -> int:
+        """
+        Đếm số lượt tiếp đón theo ngày, tuỳ chọn lọc theo trạng thái và phòng.
+
+        Dùng kết hợp với :meth:`get_by_date` để tính ``total_pages`` phân trang.
+
+        Args:
+            db: Async database session.
+            visit_date: Ngày khám cần đếm.
+            status: Lọc theo trạng thái (tuỳ chọn).
+            clinic_room: Lọc theo phòng khám (tuỳ chọn).
+
+        Returns:
+            Tổng số bản ghi phù hợp.
+        """
         query = select(func.count()).select_from(Reception).where(
             Reception.visit_date == visit_date
         )
@@ -132,7 +209,18 @@ class CRUDReception(CRUDBase[Reception]):
         skip: int = 0,
         limit: int = 20,
     ) -> List[Reception]:
-        """Lịch sử khám của một bệnh nhân."""
+        """
+        Lịch sử khám của một bệnh nhân, sắp xếp mới nhất trước.
+
+        Args:
+            db: Async database session.
+            patient_id: ID bệnh nhân cần tra lịch sử.
+            skip: Offset phân trang.
+            limit: Số bản ghi tối đa.
+
+        Returns:
+            Danh sách :class:`~app.models.reception.Reception` của bệnh nhân.
+        """
         result = await db.execute(
             select(Reception)
             .where(Reception.patient_id == patient_id)
@@ -145,7 +233,17 @@ class CRUDReception(CRUDBase[Reception]):
     async def get_by_queue_ticket(
         self, db: AsyncSession, queue_ticket_id: int
     ) -> Optional[Reception]:
-        """Lấy tiếp đón theo số thứ tự."""
+        """
+        Lấy lượt tiếp đón theo ID số thứ tự (1-1 relationship).
+
+        Args:
+            db: Async database session.
+            queue_ticket_id: ID của :class:`~app.models.queue_ticket.QueueTicket`.
+
+        Returns:
+            :class:`~app.models.reception.Reception` kèm ``patient`` đã load,
+            hoặc ``None`` nếu chưa có lượt tiếp đón nào gắn với số thứ tự này.
+        """
         result = await db.execute(
             select(Reception)
             .options(selectinload(Reception.patient))
@@ -153,7 +251,7 @@ class CRUDReception(CRUDBase[Reception]):
         )
         return result.scalar_one_or_none()
 
-    # ── Cập nhật trạng thái ──────────────────────────────────────────
+    # ── Workflow transitions ──────────────────────────────────────────────────
 
     async def check_in(
         self,
@@ -162,8 +260,21 @@ class CRUDReception(CRUDBase[Reception]):
         reception: Reception,
         obj_in: ReceptionCheckIn,
     ) -> Reception:
-        """PENDING → CHECKED_IN."""
-        reception.status = ReceptionStatus.CHECKED_IN
+        """
+        Chuyển lượt tiếp đón từ PENDING → CHECKED_IN.
+
+        Ghi ``checked_in_at`` = thời điểm hiện tại.
+        Tuỳ chọn gán số thứ tự, nhân viên tiếp đón, và ghi chú nội bộ.
+
+        Args:
+            db: Async database session.
+            reception: Instance :class:`~app.models.reception.Reception` đang ở PENDING.
+            obj_in: Schema :class:`~app.schemas.reception.ReceptionCheckIn`.
+
+        Returns:
+            :class:`~app.models.reception.Reception` đã cập nhật sang CHECKED_IN.
+        """
+        reception.status       = ReceptionStatus.CHECKED_IN
         reception.checked_in_at = datetime.now(timezone.utc)
 
         if obj_in.queue_ticket_id is not None:
@@ -181,8 +292,19 @@ class CRUDReception(CRUDBase[Reception]):
     async def complete_reception(
         self, db: AsyncSession, *, reception: Reception
     ) -> Reception:
-        """→ COMPLETED."""
-        reception.status = ReceptionStatus.COMPLETED
+        """
+        Chuyển lượt tiếp đón sang trạng thái COMPLETED.
+
+        Ghi ``completed_at`` = thời điểm hiện tại.
+
+        Args:
+            db: Async database session.
+            reception: Instance :class:`~app.models.reception.Reception` cần hoàn tất.
+
+        Returns:
+            :class:`~app.models.reception.Reception` đã cập nhật sang COMPLETED.
+        """
+        reception.status       = ReceptionStatus.COMPLETED
         reception.completed_at = datetime.now(timezone.utc)
         db.add(reception)
         await db.flush()
@@ -192,7 +314,16 @@ class CRUDReception(CRUDBase[Reception]):
     async def cancel_reception(
         self, db: AsyncSession, *, reception: Reception
     ) -> Reception:
-        """→ CANCELLED."""
+        """
+        Huỷ lượt tiếp đón (→ CANCELLED).
+
+        Args:
+            db: Async database session.
+            reception: Instance :class:`~app.models.reception.Reception` cần huỷ.
+
+        Returns:
+            :class:`~app.models.reception.Reception` đã cập nhật sang CANCELLED.
+        """
         reception.status = ReceptionStatus.CANCELLED
         db.add(reception)
         await db.flush()
@@ -206,12 +337,34 @@ class CRUDReception(CRUDBase[Reception]):
         db_obj: Reception,
         obj_in: ReceptionUpdate,
     ) -> Reception:
+        """
+        Cập nhật thông tin lượt tiếp đón (wrapper của :meth:`~CRUDBase.update`).
+
+        Args:
+            db: Async database session.
+            db_obj: Instance :class:`~app.models.reception.Reception` hiện có.
+            obj_in: Schema :class:`~app.schemas.reception.ReceptionUpdate`.
+
+        Returns:
+            :class:`~app.models.reception.Reception` đã cập nhật.
+        """
         return await self.update(db, db_obj=db_obj, obj_in=obj_in)
 
-    # ── Thống kê ────────────────────────────────────────────────────
+    # ── Thống kê ─────────────────────────────────────────────────────────────
 
     async def get_today_stats(self, db: AsyncSession) -> dict:
-        """Thống kê tổng hợp hôm nay theo trạng thái."""
+        """
+        Thống kê tổng hợp số lượt tiếp đón hôm nay theo từng trạng thái.
+
+        Dùng cho dashboard và broadcast WebSocket khi có thay đổi.
+
+        Args:
+            db: Async database session.
+
+        Returns:
+            Dict chứa: ``visit_date``, ``total``, ``pending``,
+            ``checked_in``, ``completed``, ``cancelled``.
+        """
         today = date.today()
         result = await db.execute(
             select(Reception.status, func.count(Reception.id))
@@ -237,7 +390,20 @@ class CRUDReception(CRUDBase[Reception]):
     ) -> dict:
         """
         Thống kê số lượt khám theo từng phòng khám trong ngày.
-        Phân loại: Tổng / Chưa tiếp nhận / BHYT / Dịch vụ.
+
+        Phân loại mỗi phòng theo: Tổng / Chưa tiếp nhận (PENDING) /
+        BHYT (subject_type=1) / Dịch vụ (subject_type≠1).
+
+        Args:
+            db: Async database session.
+            visit_date: Ngày cần thống kê (mặc định hôm nay).
+
+        Returns:
+            Dict chứa:
+            - ``visit_date``: ngày thống kê.
+            - ``rooms``: list dict mỗi phòng (clinic_room, total, pending, bhyt, service).
+            - ``total_all``, ``total_pending``, ``total_bhyt``, ``total_service``:
+              tổng cộng toàn bệnh viện.
         """
         target = visit_date or date.today()
 
@@ -277,19 +443,15 @@ class CRUDReception(CRUDBase[Reception]):
             for r in rows
         ]
 
-        total_all     = sum(r["total"]   for r in rooms)
-        total_pending = sum(r["pending"] for r in rooms)
-        total_bhyt    = sum(r["bhyt"]    for r in rooms)
-        total_service = sum(r["service"] for r in rooms)
-
         return {
             "visit_date":    target,
             "rooms":         rooms,
-            "total_all":     total_all,
-            "total_pending": total_pending,
-            "total_bhyt":    total_bhyt,
-            "total_service": total_service,
+            "total_all":     sum(r["total"]   for r in rooms),
+            "total_pending": sum(r["pending"] for r in rooms),
+            "total_bhyt":    sum(r["bhyt"]    for r in rooms),
+            "total_service": sum(r["service"] for r in rooms),
         }
 
 
 crud_reception = CRUDReception(Reception)
+"""Singleton instance của :class:`CRUDReception` dùng toàn ứng dụng."""

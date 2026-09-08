@@ -1,8 +1,13 @@
+"""
+CRUD operations cho model :class:`~app.models.queue_ticket.QueueTicket`.
+
+Quản lý toàn bộ vòng đời số thứ tự: tạo mới, truy vấn theo ngày/trạng thái,
+gọi số tiếp theo, và các thao tác cập nhật trạng thái.
+"""
 from datetime import date, datetime, timezone
 from typing import List, Optional
 from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from app.crud.base import CRUDBase
 from app.models.queue_ticket import QueueTicket, QueueStatus
@@ -10,10 +15,16 @@ from app.schemas.queue_ticket import QueueTicketCreate, QueueTicketStatusUpdate
 
 
 class CRUDQueueTicket(CRUDBase[QueueTicket]):
+    """
+    CRUD class cho QueueTicket — kế thừa :class:`~app.crud.base.CRUDBase`.
 
-    # ------------------------------------------------------------------ #
-    #  Tạo số thứ tự mới
-    # ------------------------------------------------------------------ #
+    Bổ sung logic nghiệp vụ: tạo số thứ tự với sequence tự tăng theo ngày,
+    lấy hàng đợi hiện tại, gọi số tiếp theo với cơ chế transition trạng thái
+    nguyên tử, và các thao tác bỏ qua / hoàn thành.
+    """
+
+    # ── Tạo mới ─────────────────────────────────────────────────────────────
+
     async def create_ticket(
         self,
         db: AsyncSession,
@@ -23,8 +34,21 @@ class CRUDQueueTicket(CRUDBase[QueueTicket]):
         prefix: str = "A",
     ) -> QueueTicket:
         """
-        Tạo số thứ tự mới cho ngày hiện tại.
-        Sequence tự tăng theo ngày, ticket_number = prefix + sequence 3 chữ số (A001…).
+        Tạo số thứ tự mới cho ngày chỉ định (mặc định hôm nay).
+
+        Sequence tự tăng theo ngày: mỗi ngày bắt đầu lại từ 1.
+        ``ticket_number`` được định dạng là ``prefix + sequence`` 3 chữ số
+        (VD: ``A001``, ``A002``…).
+
+        Args:
+            db: Async database session.
+            obj_in: Schema :class:`~app.schemas.queue_ticket.QueueTicketCreate`.
+            issue_date: Ngày cấp số (mặc định ``date.today()``).
+            prefix: Ký tự đầu của ticket_number (mặc định ``"A"``).
+
+        Returns:
+            :class:`~app.models.queue_ticket.QueueTicket` vừa tạo với
+            ``status=WAITING``.
         """
         today = issue_date or date.today()
 
@@ -51,9 +75,8 @@ class CRUDQueueTicket(CRUDBase[QueueTicket]):
         await db.refresh(ticket)
         return ticket
 
-    # ------------------------------------------------------------------ #
-    #  Truy vấn
-    # ------------------------------------------------------------------ #
+    # ── Truy vấn ─────────────────────────────────────────────────────────────
+
     async def get_by_date(
         self,
         db: AsyncSession,
@@ -63,7 +86,20 @@ class CRUDQueueTicket(CRUDBase[QueueTicket]):
         skip: int = 0,
         limit: int = 100,
     ) -> List[QueueTicket]:
-        """Lấy danh sách số thứ tự theo ngày, tuỳ chọn lọc theo status."""
+        """
+        Lấy danh sách số thứ tự theo ngày, tuỳ chọn lọc theo trạng thái.
+
+        Args:
+            db: Async database session.
+            issue_date: Ngày cần truy vấn.
+            status: Lọc theo trạng thái cụ thể (tuỳ chọn).
+            skip: Offset phân trang.
+            limit: Số bản ghi tối đa.
+
+        Returns:
+            Danh sách :class:`~app.models.queue_ticket.QueueTicket`
+            sắp xếp theo ``sequence`` tăng dần.
+        """
         query = select(QueueTicket).where(QueueTicket.issue_date == issue_date)
         if status:
             query = query.where(QueueTicket.status == status)
@@ -74,14 +110,34 @@ class CRUDQueueTicket(CRUDBase[QueueTicket]):
     async def get_waiting_list(
         self, db: AsyncSession, *, issue_date: Optional[date] = None
     ) -> List[QueueTicket]:
-        """Danh sách đang chờ (WAITING) hôm nay, sắp xếp theo sequence."""
+        """
+        Lấy danh sách số thứ tự đang chờ (WAITING) trong ngày.
+
+        Args:
+            db: Async database session.
+            issue_date: Ngày cần xem (mặc định hôm nay).
+
+        Returns:
+            Danh sách :class:`~app.models.queue_ticket.QueueTicket` có
+            ``status=WAITING``, sắp xếp theo ``sequence`` tăng dần.
+        """
         today = issue_date or date.today()
         return await self.get_by_date(db, issue_date=today, status=QueueStatus.WAITING, limit=200)
 
     async def get_current_calling(
         self, db: AsyncSession, *, issue_date: Optional[date] = None
     ) -> Optional[QueueTicket]:
-        """Số thứ tự đang được gọi (CALLING)."""
+        """
+        Lấy số thứ tự đang được gọi (CALLING) mới nhất trong ngày.
+
+        Args:
+            db: Async database session.
+            issue_date: Ngày cần xem (mặc định hôm nay).
+
+        Returns:
+            :class:`~app.models.queue_ticket.QueueTicket` đang ở trạng thái
+            CALLING (được gọi gần nhất), hoặc ``None`` nếu không có.
+        """
         today = issue_date or date.today()
         result = await db.execute(
             select(QueueTicket)
@@ -97,7 +153,20 @@ class CRUDQueueTicket(CRUDBase[QueueTicket]):
         return result.scalar_one_or_none()
 
     async def get_summary(self, db: AsyncSession, *, issue_date: Optional[date] = None) -> dict:
-        """Đếm số lượng theo từng trạng thái trong ngày."""
+        """
+        Tổng hợp số lượng theo từng trạng thái trong ngày.
+
+        Dùng cho dashboard real-time và broadcast WebSocket.
+
+        Args:
+            db: Async database session.
+            issue_date: Ngày cần thống kê (mặc định hôm nay).
+
+        Returns:
+            Dict chứa: ``issue_date``, ``total``, ``waiting``, ``calling``,
+            ``serving``, ``done``, ``skipped``, ``current_calling``
+            (ticket_number đang được gọi hoặc ``None``).
+        """
         today = issue_date or date.today()
         result = await db.execute(
             select(QueueTicket.status, func.count(QueueTicket.id))
@@ -110,33 +179,42 @@ class CRUDQueueTicket(CRUDBase[QueueTicket]):
 
         current = await self.get_current_calling(db, issue_date=today)
         return {
-            "issue_date": today,
-            "total": total,
-            "waiting": counts.get(QueueStatus.WAITING, 0),
-            "calling": counts.get(QueueStatus.CALLING, 0),
-            "serving": counts.get(QueueStatus.SERVING, 0),
-            "done": counts.get(QueueStatus.DONE, 0),
-            "skipped": counts.get(QueueStatus.SKIPPED, 0),
-            "current_calling": current.ticket_number if current else None,
+            "issue_date":       today,
+            "total":            total,
+            "waiting":          counts.get(QueueStatus.WAITING, 0),
+            "calling":          counts.get(QueueStatus.CALLING, 0),
+            "serving":          counts.get(QueueStatus.SERVING, 0),
+            "done":             counts.get(QueueStatus.DONE, 0),
+            "skipped":          counts.get(QueueStatus.SKIPPED, 0),
+            "current_calling":  current.ticket_number if current else None,
         }
 
-    # ------------------------------------------------------------------ #
-    #  Cập nhật trạng thái
-    # ------------------------------------------------------------------ #
+    # ── Cập nhật trạng thái ──────────────────────────────────────────────────
+
     async def call_next(
         self, db: AsyncSession, *, issue_date: Optional[date] = None
     ) -> Optional[QueueTicket]:
         """
-        Gọi số tiếp theo:
-        1. Chuyển số đang CALLING → SERVING (nếu có).
-        2. Lấy số WAITING nhỏ nhất → CALLING.
+        Gọi số thứ tự tiếp theo trong hàng đợi.
+
+        Thực hiện hai bước nguyên tử trong cùng một flush:
+        1. Chuyển số đang ``CALLING`` → ``SERVING`` (ghi ``served_at``).
+        2. Lấy số ``WAITING`` nhỏ nhất → ``CALLING`` (ghi ``called_at``).
+
+        Args:
+            db: Async database session.
+            issue_date: Ngày cần gọi số (mặc định hôm nay).
+
+        Returns:
+            :class:`~app.models.queue_ticket.QueueTicket` vừa được chuyển sang
+            CALLING, hoặc ``None`` nếu hàng đợi trống.
         """
         today = issue_date or date.today()
 
         # Chuyển CALLING → SERVING
         current = await self.get_current_calling(db, issue_date=today)
         if current:
-            current.status = QueueStatus.SERVING
+            current.status   = QueueStatus.SERVING
             current.served_at = datetime.now(timezone.utc)
             db.add(current)
 
@@ -154,7 +232,7 @@ class CRUDQueueTicket(CRUDBase[QueueTicket]):
         )
         next_ticket = result.scalar_one_or_none()
         if next_ticket:
-            next_ticket.status = QueueStatus.CALLING
+            next_ticket.status    = QueueStatus.CALLING
             next_ticket.called_at = datetime.now(timezone.utc)
             db.add(next_ticket)
             await db.flush()
@@ -168,7 +246,22 @@ class CRUDQueueTicket(CRUDBase[QueueTicket]):
         ticket: QueueTicket,
         obj_in: QueueTicketStatusUpdate,
     ) -> QueueTicket:
-        """Cập nhật trạng thái thủ công với timestamp tương ứng."""
+        """
+        Cập nhật trạng thái số thứ tự thủ công với timestamp tương ứng.
+
+        Tự động ghi timestamp phù hợp theo trạng thái mới:
+        - CALLING  → ``called_at``
+        - SERVING  → ``served_at``
+        - DONE / SKIPPED → ``done_at``
+
+        Args:
+            db: Async database session.
+            ticket: Instance :class:`~app.models.queue_ticket.QueueTicket` cần cập nhật.
+            obj_in: Schema :class:`~app.schemas.queue_ticket.QueueTicketStatusUpdate`.
+
+        Returns:
+            :class:`~app.models.queue_ticket.QueueTicket` đã cập nhật.
+        """
         now = datetime.now(timezone.utc)
 
         ticket.status = obj_in.status
@@ -192,8 +285,18 @@ class CRUDQueueTicket(CRUDBase[QueueTicket]):
     async def skip_ticket(
         self, db: AsyncSession, *, ticket: QueueTicket
     ) -> QueueTicket:
-        """Đánh dấu bỏ qua (không có mặt)."""
-        ticket.status = QueueStatus.SKIPPED
+        """
+        Đánh dấu số thứ tự là đã bỏ qua (SKIPPED) — gọi không có mặt.
+
+        Args:
+            db: Async database session.
+            ticket: Instance :class:`~app.models.queue_ticket.QueueTicket` cần bỏ qua.
+
+        Returns:
+            :class:`~app.models.queue_ticket.QueueTicket` với
+            ``status=SKIPPED`` và ``done_at`` đã được ghi.
+        """
+        ticket.status  = QueueStatus.SKIPPED
         ticket.done_at = datetime.now(timezone.utc)
         db.add(ticket)
         await db.flush()
@@ -203,8 +306,18 @@ class CRUDQueueTicket(CRUDBase[QueueTicket]):
     async def complete_ticket(
         self, db: AsyncSession, *, ticket: QueueTicket
     ) -> QueueTicket:
-        """Hoàn thành số thứ tự."""
-        ticket.status = QueueStatus.DONE
+        """
+        Đánh dấu số thứ tự là đã hoàn thành (DONE).
+
+        Args:
+            db: Async database session.
+            ticket: Instance :class:`~app.models.queue_ticket.QueueTicket` cần hoàn thành.
+
+        Returns:
+            :class:`~app.models.queue_ticket.QueueTicket` với
+            ``status=DONE`` và ``done_at`` đã được ghi.
+        """
+        ticket.status  = QueueStatus.DONE
         ticket.done_at = datetime.now(timezone.utc)
         db.add(ticket)
         await db.flush()
@@ -213,3 +326,4 @@ class CRUDQueueTicket(CRUDBase[QueueTicket]):
 
 
 crud_queue_ticket = CRUDQueueTicket(QueueTicket)
+"""Singleton instance của :class:`CRUDQueueTicket` dùng toàn ứng dụng."""

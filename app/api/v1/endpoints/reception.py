@@ -2,13 +2,13 @@
 API endpoints quản lý tiếp đón bệnh nhân.
 
 Routes:
-  POST   /receptions/scan-cccd           — Quét CCCD → tra cứu / tạo bệnh nhân
-  POST   /receptions                     — Tạo mới tiếp đón
+  POST   /receptions/scan-cccd           — Quét CCCD → tra cứu hoặc tạo mới bệnh nhân
+  POST   /receptions                     — Tạo mới lượt tiếp đón
   GET    /receptions/stats               — Thống kê hôm nay theo trạng thái
   GET    /receptions/clinic-stats        — Thống kê theo phòng khám
-  GET    /receptions                     — Danh sách (phân trang, lọc)
-  GET    /receptions/{id}                — Chi tiết
-  PUT    /receptions/{id}                — Cập nhật
+  GET    /receptions                     — Danh sách lượt tiếp đón (phân trang, lọc)
+  GET    /receptions/{id}                — Chi tiết lượt tiếp đón
+  PUT    /receptions/{id}                — Cập nhật thông tin
   POST   /receptions/{id}/check-in       — PENDING → CHECKED_IN
   POST   /receptions/{id}/complete       — → COMPLETED
   POST   /receptions/{id}/cancel         — → CANCELLED
@@ -38,21 +38,36 @@ from app.services.websocket_manager import ws_manager
 router = APIRouter(prefix="/receptions", tags=["Reception - Tiếp đón"])
 
 
-# ─────────────────────────────────────────────────────────────
-#  Scan CCCD
-# ─────────────────────────────────────────────────────────────
+# ── Local schemas ─────────────────────────────────────────────────────────────
+
 class ScanCCCDRequest(PatientCreate):
-    """Body khi quét CCCD: dữ liệu đọc từ chip/barcode."""
+    """
+    Body request khi quét CCCD: dữ liệu đọc từ chip hoặc barcode.
+
+    Kế thừa :class:`~app.schemas.patient.PatientCreate` —
+    truyền toàn bộ thông tin đọc được từ thẻ căn cước.
+    """
     pass
 
 
 class ScanCCCDResponse(BaseModel):
+    """
+    Response sau khi quét CCCD.
+
+    Attributes:
+        patient: Thông tin bệnh nhân (đã có hoặc vừa tạo mới).
+        is_new_patient: ``True`` nếu bệnh nhân vừa được tạo mới.
+        message: Thông báo kết quả cho nhân viên tiếp đón.
+    """
+
     patient: PatientResponse
     is_new_patient: bool
     message: str
 
     model_config = {"from_attributes": True}
 
+
+# ── Scan CCCD ─────────────────────────────────────────────────────────────────
 
 @router.post(
     "/scan-cccd",
@@ -64,11 +79,19 @@ async def scan_cccd(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Nhân viên dùng thiết bị quét CCCD/CMND.
-    - Đã có trong hệ thống → trả về thông tin hiện có.
-    - Chưa có → tạo mới từ dữ liệu CCCD, sinh patient_code tự động.
+    Xử lý dữ liệu quét CCCD/CMND từ thiết bị đọc thẻ.
+
+    Logic upsert:
+    - Bệnh nhân đã có trong hệ thống (tra theo CCCD) → trả về thông tin hiện có.
+    - Chưa có → tạo mới từ dữ liệu CCCD, sinh ``patient_code`` tự động.
+
+    Args:
+        obj_in: :class:`ScanCCCDRequest` chứa dữ liệu đọc từ thẻ CCCD.
+        db: Async database session (injected).
+
+    Returns:
+        :class:`ScanCCCDResponse` với thông tin bệnh nhân và cờ ``is_new_patient``.
     """
-    # ScanCCCDRequest extends PatientCreate — pass directly, no need to reconstruct
     patient, is_new = await crud_patient.get_or_create_by_cccd(db, obj_in=obj_in)
     return ScanCCCDResponse(
         patient=patient,
@@ -77,24 +100,38 @@ async def scan_cccd(
     )
 
 
-# ─────────────────────────────────────────────────────────────
-#  Tạo mới tiếp đón
-# ─────────────────────────────────────────────────────────────
+# ── Tạo mới tiếp đón ─────────────────────────────────────────────────────────
+
 @router.post(
     "",
     response_model=ReceptionResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="Tạo mới tiếp đón",
+    summary="Tạo mới lượt tiếp đón",
 )
 async def create_reception(
     obj_in: ReceptionCreate,
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Đăng ký lượt khám:
-    - Truyền `patient_id` nếu bệnh nhân đã có.
-    - Hoặc `patient_data` để tạo bệnh nhân mới đồng thời.
-    - visit_time và visit_number tự sinh nếu không truyền.
+    Đăng ký lượt khám mới cho bệnh nhân.
+
+    Có thể dùng theo hai cách:
+    - Truyền ``patient_id`` nếu bệnh nhân đã có trong hệ thống.
+    - Truyền ``patient_data`` để tạo bệnh nhân mới đồng thời.
+
+    ``visit_time`` và ``visit_number`` tự sinh nếu không truyền.
+    Sau khi tạo, broadcast cập nhật stats tới quầy tiếp đón qua WebSocket.
+
+    Args:
+        obj_in: :class:`~app.schemas.reception.ReceptionCreate`.
+        db: Async database session (injected).
+
+    Returns:
+        :class:`~app.schemas.reception.ReceptionResponse` kèm thông tin bệnh nhân.
+
+    Raises:
+        HTTPException 422: Không cung cấp ``patient_id`` lẫn ``patient_data``.
+        HTTPException 404: Không tìm thấy bệnh nhân với ``patient_id`` đã cho.
     """
     if not obj_in.patient_id and not obj_in.patient_data:
         raise HTTPException(status_code=422, detail="Phải cung cấp patient_id hoặc patient_data")
@@ -117,15 +154,21 @@ async def create_reception(
     return reception_detail
 
 
-# ─────────────────────────────────────────────────────────────
-#  Thống kê
-# ─────────────────────────────────────────────────────────────
-@router.get(
-    "/stats",
-    summary="Thống kê tiếp đón hôm nay",
-)
+# ── Thống kê ─────────────────────────────────────────────────────────────────
+
+@router.get("/stats", summary="Thống kê tiếp đón hôm nay")
 async def get_today_stats(db: AsyncSession = Depends(get_db)):
-    """Tổng số lượt theo trạng thái (pending / checked_in / completed / cancelled)."""
+    """
+    Tổng số lượt tiếp đón hôm nay phân theo trạng thái.
+
+    Trả về: ``pending``, ``checked_in``, ``completed``, ``cancelled``, ``total``.
+
+    Args:
+        db: Async database session (injected).
+
+    Returns:
+        Dict thống kê theo trạng thái của ngày hiện tại.
+    """
     return await crud_reception.get_today_stats(db)
 
 
@@ -139,9 +182,17 @@ async def get_clinic_room_stats(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Bảng thống kê phòng khám: mỗi phòng hiển thị
-    Tổng số / Chưa tiếp nhận / BHYT / Dịch vụ.
-    Dòng cuối là Tổng cộng.
+    Bảng thống kê số lượt khám theo từng phòng khám trong ngày.
+
+    Mỗi phòng hiển thị: Tổng / Chưa tiếp nhận / BHYT / Dịch vụ.
+    Dòng cuối là tổng cộng toàn bệnh viện.
+
+    Args:
+        visit_date: Ngày cần thống kê (mặc định hôm nay).
+        db: Async database session (injected).
+
+    Returns:
+        :class:`~app.schemas.reception.ClinicRoomStatResponse`.
     """
     raw = await crud_reception.get_clinic_room_stats(db, visit_date=visit_date)
     rooms = [ClinicRoomStat(**r) for r in raw["rooms"]]
@@ -154,13 +205,12 @@ async def get_clinic_room_stats(
     )
 
 
-# ─────────────────────────────────────────────────────────────
-#  Danh sách
-# ─────────────────────────────────────────────────────────────
+# ── Danh sách ─────────────────────────────────────────────────────────────────
+
 @router.get(
     "",
     response_model=PaginatedResponse[ReceptionList],
-    summary="Danh sách tiếp đón",
+    summary="Danh sách lượt tiếp đón",
 )
 async def list_receptions(
     visit_date:    Optional[date] = Query(None, description="Ngày khám, mặc định hôm nay"),
@@ -170,6 +220,26 @@ async def list_receptions(
     page_size:     int            = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
 ):
+    """
+    Lấy danh sách lượt tiếp đón có phân trang, tuỳ chọn lọc.
+
+    Kết quả sắp xếp: ưu tiên cao → số khám tăng dần → ID tăng dần.
+
+    Args:
+        visit_date: Ngày khám (mặc định hôm nay).
+        status_filter: Lọc theo trạng thái (VD: ``"pending"``, ``"checked_in"``).
+        clinic_room: Lọc theo tên phòng khám.
+        page: Số trang (bắt đầu từ 1).
+        page_size: Số bản ghi mỗi trang (1–100).
+        db: Async database session (injected).
+
+    Returns:
+        :class:`~app.schemas.common.PaginatedResponse` chứa
+        danh sách :class:`~app.schemas.reception.ReceptionList`.
+
+    Raises:
+        HTTPException 400: Giá trị ``status`` không hợp lệ.
+    """
     status_enum = None
     if status_filter:
         try:
@@ -181,41 +251,44 @@ async def list_receptions(
     skip = (page - 1) * page_size
 
     items = await crud_reception.get_by_date(
-        db,
-        visit_date=target_date,
-        status=status_enum,
-        clinic_room=clinic_room,
-        skip=skip,
-        limit=page_size,
+        db, visit_date=target_date, status=status_enum,
+        clinic_room=clinic_room, skip=skip, limit=page_size,
     )
     total = await crud_reception.count_by_date(
-        db,
-        visit_date=target_date,
-        status=status_enum,
-        clinic_room=clinic_room,
+        db, visit_date=target_date, status=status_enum, clinic_room=clinic_room,
     )
 
     return PaginatedResponse(
-        items=items,
-        total=total,
-        page=page,
+        items=items, total=total, page=page,
         page_size=page_size,
         total_pages=ceil(total / page_size) if total else 0,
     )
 
 
-# ─────────────────────────────────────────────────────────────
-#  Chi tiết / Cập nhật
-# ─────────────────────────────────────────────────────────────
+# ── Chi tiết / Cập nhật ───────────────────────────────────────────────────────
+
 @router.get(
     "/{reception_id}",
     response_model=ReceptionResponse,
-    summary="Chi tiết tiếp đón",
+    summary="Chi tiết lượt tiếp đón",
 )
 async def get_reception(
     reception_id: int,
     db: AsyncSession = Depends(get_db),
 ):
+    """
+    Lấy thông tin đầy đủ một lượt tiếp đón kèm thông tin bệnh nhân.
+
+    Args:
+        reception_id: ID lượt tiếp đón.
+        db: Async database session (injected).
+
+    Returns:
+        :class:`~app.schemas.reception.ReceptionResponse`.
+
+    Raises:
+        HTTPException 404: Không tìm thấy lượt tiếp đón.
+    """
     reception = await crud_reception.get_with_patient(db, reception_id)
     if not reception:
         raise HTTPException(status_code=404, detail="Không tìm thấy thông tin tiếp đón")
@@ -225,13 +298,29 @@ async def get_reception(
 @router.put(
     "/{reception_id}",
     response_model=ReceptionResponse,
-    summary="Cập nhật thông tin tiếp đón",
+    summary="Cập nhật thông tin lượt tiếp đón",
 )
 async def update_reception(
     reception_id: int,
     obj_in: ReceptionUpdate,
     db: AsyncSession = Depends(get_db),
 ):
+    """
+    Cập nhật thông tin hành chính / bảo hiểm của lượt tiếp đón (partial update).
+
+    Không thể thay đổi ``status`` qua endpoint này — dùng workflow endpoints.
+
+    Args:
+        reception_id: ID lượt tiếp đón cần cập nhật.
+        obj_in: :class:`~app.schemas.reception.ReceptionUpdate`.
+        db: Async database session (injected).
+
+    Returns:
+        :class:`~app.schemas.reception.ReceptionResponse` sau khi cập nhật.
+
+    Raises:
+        HTTPException 404: Không tìm thấy lượt tiếp đón.
+    """
     reception = await crud_reception.get(db, reception_id)
     if not reception:
         raise HTTPException(status_code=404, detail="Không tìm thấy thông tin tiếp đón")
@@ -239,9 +328,8 @@ async def update_reception(
     return await crud_reception.get_with_patient(db, reception_id)
 
 
-# ─────────────────────────────────────────────────────────────
-#  Workflow transitions
-# ─────────────────────────────────────────────────────────────
+# ── Workflow transitions ──────────────────────────────────────────────────────
+
 @router.post(
     "/{reception_id}/check-in",
     response_model=ReceptionResponse,
@@ -252,6 +340,24 @@ async def check_in(
     obj_in: ReceptionCheckIn,
     db: AsyncSession = Depends(get_db),
 ):
+    """
+    Nhân viên tiếp đón xác nhận bệnh nhân đã có mặt (PENDING → CHECKED_IN).
+
+    Ghi ``checked_in_at`` và tuỳ chọn gán số thứ tự, tên nhân viên, ghi chú.
+    Broadcast cập nhật stats tới quầy tiếp đón qua WebSocket.
+
+    Args:
+        reception_id: ID lượt tiếp đón cần check-in.
+        obj_in: :class:`~app.schemas.reception.ReceptionCheckIn`.
+        db: Async database session (injected).
+
+    Returns:
+        :class:`~app.schemas.reception.ReceptionResponse` với status CHECKED_IN.
+
+    Raises:
+        HTTPException 404: Không tìm thấy lượt tiếp đón hoặc số thứ tự.
+        HTTPException 400: Lượt tiếp đón không ở trạng thái PENDING.
+    """
     reception = await crud_reception.get(db, reception_id)
     if not reception:
         raise HTTPException(status_code=404, detail="Không tìm thấy thông tin tiếp đón")
@@ -272,19 +378,31 @@ async def check_in(
 
     stats = await crud_reception.get_today_stats(db)
     await ws_manager.broadcast("reception", {"type": "reception_update", "data": stats})
-
     return result
 
 
 @router.post(
     "/{reception_id}/complete",
     response_model=ReceptionResponse,
-    summary="Hoàn tất tiếp đón",
+    summary="Hoàn tất lượt tiếp đón",
 )
 async def complete_reception(
     reception_id: int,
     db: AsyncSession = Depends(get_db),
 ):
+    """
+    Chuyển lượt tiếp đón sang COMPLETED (hoàn tất).
+
+    Args:
+        reception_id: ID lượt tiếp đón cần hoàn tất.
+        db: Async database session (injected).
+
+    Returns:
+        :class:`~app.schemas.reception.ReceptionResponse` với status COMPLETED.
+
+    Raises:
+        HTTPException 404: Không tìm thấy lượt tiếp đón.
+    """
     reception = await crud_reception.get(db, reception_id)
     if not reception:
         raise HTTPException(status_code=404, detail="Không tìm thấy thông tin tiếp đón")
@@ -295,12 +413,25 @@ async def complete_reception(
 @router.post(
     "/{reception_id}/cancel",
     response_model=ReceptionResponse,
-    summary="Huỷ tiếp đón",
+    summary="Huỷ lượt tiếp đón",
 )
 async def cancel_reception(
     reception_id: int,
     db: AsyncSession = Depends(get_db),
 ):
+    """
+    Huỷ lượt tiếp đón (→ CANCELLED).
+
+    Args:
+        reception_id: ID lượt tiếp đón cần huỷ.
+        db: Async database session (injected).
+
+    Returns:
+        :class:`~app.schemas.reception.ReceptionResponse` với status CANCELLED.
+
+    Raises:
+        HTTPException 404: Không tìm thấy lượt tiếp đón.
+    """
     reception = await crud_reception.get(db, reception_id)
     if not reception:
         raise HTTPException(status_code=404, detail="Không tìm thấy thông tin tiếp đón")

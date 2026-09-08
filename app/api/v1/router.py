@@ -1,8 +1,16 @@
+"""
+API v1 router — tổng hợp tất cả endpoint routers.
+
+Tất cả routes được mount dưới prefix ``/api/v1``.
+Thứ tự include không ảnh hưởng đến routing nhưng được giữ nhất quán
+theo nhóm chức năng: auth → queue → patients → reception → doctor → examination.
+"""
 from fastapi import APIRouter
 
 from app.api.v1.endpoints import queue, patients, reception, auth, doctor, examination
 
 api_router = APIRouter(prefix="/api/v1")
+"""Router gốc của API v1 — được mount vào FastAPI app trong ``main.py``."""
 
 api_router.include_router(auth.router)
 api_router.include_router(queue.router)
