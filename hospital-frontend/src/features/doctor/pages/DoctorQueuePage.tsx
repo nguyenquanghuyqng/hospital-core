@@ -5,8 +5,8 @@ import { doctorApi } from '@api/doctor.api';
 import { useAuth } from '@features/auth/AuthContext';
 import { useWebSocket } from '@hooks/useWebSocket';
 import { useAsync } from '@hooks/useAsync';
-import { Button, Card, StatCard, StatusBadge, EmptyState, LoadingOverlay, ConfirmDialog } from '@components/ui';
-import { fmtDate, fmtGender, today, VISIT_STATUS_LABELS } from '@lib/utils';
+import { Button, Card, StatCard, EmptyState, LoadingOverlay, ConfirmDialog } from '@components/ui';
+import { today, VISIT_STATUS_LABELS } from '@lib/utils';
 import { ROUTES, toPath } from '@/app/routes';
 import type { QueueItem, QueueStatsResponse, VisitStatus } from '@/types';
 import TransferModal from '../components/TransferModal';
@@ -141,65 +141,186 @@ interface CardProps {
   onExamine:      () => void;
 }
 
-const VISIT_STATUS_ACTIONS: { label: string; status: VisitStatus; variant?: 'primary' | 'secondary' | 'ghost' }[] = [
-  { label: 'Đi CLS',       status: 'cls',        variant: 'secondary' },
-  { label: 'Có KQ CLS',    status: 'cls_result',  variant: 'secondary' },
-  { label: 'Hẹn tái khám', status: 'revisit',    variant: 'ghost'    },
+const VISIT_STATUS_ACTIONS: { label: string; status: VisitStatus; icon: string }[] = [
+  { label: 'Đi làm CLS',       status: 'cls',        icon: '🔬' },
+  { label: 'Có kết quả CLS',   status: 'cls_result', icon: '📋' },
+  { label: 'Hẹn tái khám',     status: 'revisit',    icon: '📅' },
+  { label: 'Chờ khám lại',     status: 'waiting',    icon: '⏳' },
 ];
 
 function PatientCard({ item, onVisitStatus, onDone, onTransfer, onExamine }: CardProps) {
   const p = item.patient;
-  const priorityColor = item.priority >= 2 ? 'var(--clr-danger)' : item.priority === 1 ? 'var(--clr-warning)' : 'var(--clr-gray-300)';
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  const priorityColor =
+    item.priority >= 2 ? 'var(--clr-danger)'
+    : item.priority === 1 ? 'var(--clr-warning)'
+    : 'var(--clr-gray-200)';
+
+  const visitStatusColor: Record<string, string> = {
+    waiting:    '#1e40af',
+    cls:        '#7c3aed',
+    cls_result: '#ea580c',
+    revisit:    '#0891b2',
+    done:       '#065f46',
+  };
+
+  const visitStatusBg: Record<string, string> = {
+    waiting:    '#dbeafe',
+    cls:        '#ede9fe',
+    cls_result: '#ffedd5',
+    revisit:    '#cffafe',
+    done:       '#d1fae5',
+  };
+
+  const vsColor = visitStatusColor[item.visit_status] ?? 'var(--clr-gray-600)';
+  const vsBg    = visitStatusBg[item.visit_status]    ?? 'var(--clr-gray-100)';
 
   return (
-    <div style={{
-      background: '#fff', border: `2px solid ${item.priority >= 1 ? priorityColor : 'var(--clr-gray-100)'}`,
-      borderRadius: 12, padding: '16px 20px',
-      boxShadow: item.priority >= 1 ? `0 2px 12px ${priorityColor}30` : 'var(--shadow-sm)',
-    }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
-        {/* Left: patient info */}
-        <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start', flex: 1 }}>
-          <div style={{
-            minWidth: 48, height: 48, borderRadius: '50%',
-            background: 'var(--clr-primary-light)', color: 'var(--clr-primary-dark)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontWeight: 800, fontSize: '1rem',
-          }}>
-            {item.visit_number ?? '?'}
-          </div>
-          <div>
-            <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--clr-gray-800)' }}>
+    <div
+      style={{
+        background: '#fff',
+        border: `2px solid ${item.priority >= 1 ? priorityColor : 'var(--clr-gray-100)'}`,
+        borderRadius: 14,
+        boxShadow: item.priority >= 1 ? `0 2px 12px ${priorityColor}30` : 'var(--shadow-sm)',
+        overflow: 'visible',
+        position: 'relative',
+        transition: 'box-shadow .15s, border-color .15s',
+        cursor: 'pointer',
+      }}
+      onClick={onExamine}
+      onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.boxShadow = 'var(--shadow-lg)'; }}
+      onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.boxShadow = item.priority >= 1 ? `0 2px 12px ${priorityColor}30` : 'var(--shadow-sm)'; }}
+    >
+      {/* ── Top section — clickable ──────────────────────────── */}
+      <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 14 }}>
+
+        {/* Number badge */}
+        <div style={{
+          minWidth: 52, height: 52, borderRadius: 14,
+          background: 'linear-gradient(135deg, var(--clr-primary-light), #bae6fd)',
+          color: 'var(--clr-primary-dark)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontWeight: 900, fontSize: '1.3rem', flexShrink: 0,
+          border: '2px solid var(--clr-primary-light)',
+        }}>
+          {item.visit_number ?? '?'}
+        </div>
+
+        {/* Patient info */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
+            <span style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--clr-gray-900)' }}>
               {p.full_name}
-              {item.priority >= 2 && <span style={{ marginLeft: 8, fontSize: '.75rem', background: 'var(--clr-danger)', color: '#fff', padding: '1px 8px', borderRadius: 9999 }}>CẤP CỨU</span>}
-              {item.priority === 1 && <span style={{ marginLeft: 8, fontSize: '.75rem', background: 'var(--clr-warning)', color: '#fff', padding: '1px 8px', borderRadius: 9999 }}>ƯU TIÊN</span>}
-            </div>
-            <div className="flex gap-3 mt-1">
-              <span className="text-xs text-muted">{fmtGender(p.gender)}</span>
-              {p.birth_year && <span className="text-xs text-muted">{p.birth_year}</span>}
-              {p.phone && <span className="text-xs text-muted">{p.phone}</span>}
-              <span className="text-xs text-muted">{item.subject_name ?? '—'}</span>
-            </div>
+            </span>
+            {item.priority >= 2 && (
+              <span style={{ fontSize: '.7rem', background: 'var(--clr-danger)', color: '#fff', padding: '2px 8px', borderRadius: 9999, fontWeight: 700 }}>
+                🚨 CẤP CỨU
+              </span>
+            )}
+            {item.priority === 1 && (
+              <span style={{ fontSize: '.7rem', background: 'var(--clr-warning)', color: '#fff', padding: '2px 8px', borderRadius: 9999, fontWeight: 700 }}>
+                ⚡ ƯU TIÊN
+              </span>
+            )}
+          </div>
+          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+            {p.birth_year && <span className="text-xs text-muted">🎂 {p.birth_year}</span>}
+            {p.gender && <span className="text-xs text-muted">{p.gender === 'male' ? '♂ Nam' : '♀ Nữ'}</span>}
+            {p.phone && <span className="text-xs text-muted">📞 {p.phone}</span>}
+            {item.subject_name && <span className="text-xs" style={{ color: 'var(--clr-primary-dark)', fontWeight: 500 }}>🏥 {item.subject_name}</span>}
+            {item.visit_time && <span className="text-xs text-muted">⏰ {item.visit_time}</span>}
           </div>
         </div>
 
-        {/* Right: status */}
-        <StatusBadge status={item.visit_status} />
+        {/* Visit status pill */}
+        <div style={{
+          padding: '5px 14px', borderRadius: 9999, fontSize: '.78rem', fontWeight: 700,
+          background: vsBg, color: vsColor, flexShrink: 0,
+          border: `1px solid ${vsColor}30`,
+        }}>
+          {({ waiting: '⏳ Chờ khám', cls: '🔬 Đi CLS', cls_result: '📋 Có KQ CLS', revisit: '📅 Tái khám', done: '✅ Xong' } as Record<string, string>)[item.visit_status] ?? item.visit_status}
+        </div>
+
+        {/* Caret hint */}
+        <span style={{ color: 'var(--clr-gray-300)', fontSize: '1.1rem', flexShrink: 0 }}>›</span>
       </div>
 
-      {/* Actions */}
-      <div className="flex gap-2 mt-3" style={{ flexWrap: 'wrap' }}>
-        <Button size="sm" onClick={onExamine}>🩺 Khám</Button>
-        {VISIT_STATUS_ACTIONS.filter(a => a.status !== item.visit_status).map(a => (
-          <Button key={a.status} size="sm" variant={a.variant ?? 'secondary'}
-            onClick={() => onVisitStatus(item.id, a.status)}>
-            {a.label}
-          </Button>
-        ))}
-        <Button size="sm" variant="ghost" onClick={onTransfer}>🔄 Chuyển phòng</Button>
-        <Button size="sm" variant="ghost" onClick={onDone} style={{ marginLeft: 'auto', color: 'var(--clr-success)' }}>
-          ✅ Xong
-        </Button>
+      {/* ── Action bar — stop propagation ────────────────────── */}
+      <div
+        style={{
+          padding: '10px 16px',
+          background: 'var(--clr-gray-50)',
+          borderTop: '1px solid var(--clr-gray-100)',
+          display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap',
+        }}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Primary action */}
+        <button
+          onClick={onExamine}
+          style={{
+            padding: '6px 18px', borderRadius: 8, border: 'none', cursor: 'pointer',
+            background: 'linear-gradient(135deg, var(--clr-primary), var(--clr-primary-dark))',
+            color: '#fff', fontWeight: 700, fontSize: '.85rem', fontFamily: 'var(--font-sans)',
+            boxShadow: '0 2px 8px rgba(14,165,233,.3)',
+            display: 'flex', alignItems: 'center', gap: 6,
+          }}
+        >
+          🩺 Mở phiếu khám
+        </button>
+
+        {/* Status change buttons */}
+        {VISIT_STATUS_ACTIONS
+          .filter(a => a.status !== item.visit_status)
+          .map(a => (
+            <button
+              key={a.status}
+              onClick={() => onVisitStatus(item.id, a.status)}
+              style={{
+                padding: '6px 14px', borderRadius: 8, fontSize: '.82rem',
+                border: '1.5px solid var(--clr-gray-200)',
+                background: '#fff', cursor: 'pointer', fontFamily: 'var(--font-sans)',
+                color: 'var(--clr-gray-700)', fontWeight: 500,
+                display: 'flex', alignItems: 'center', gap: 5,
+                transition: 'background .15s, border-color .15s',
+              }}
+              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--clr-gray-100)'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = '#fff'; }}
+            >
+              {a.icon} {a.label}
+            </button>
+          ))
+        }
+
+        {/* Spacer */}
+        <div style={{ flex: 1 }} />
+
+        {/* Transfer */}
+        <button
+          onClick={onTransfer}
+          style={{
+            padding: '6px 14px', borderRadius: 8, fontSize: '.82rem',
+            border: '1.5px solid var(--clr-gray-200)',
+            background: '#fff', cursor: 'pointer', fontFamily: 'var(--font-sans)',
+            color: 'var(--clr-gray-600)', fontWeight: 500,
+          }}
+        >
+          🔄 Chuyển phòng
+        </button>
+
+        {/* Done */}
+        <button
+          onClick={onDone}
+          style={{
+            padding: '6px 14px', borderRadius: 8, fontSize: '.82rem',
+            border: '1.5px solid #86efac',
+            background: '#f0fdf4', cursor: 'pointer', fontFamily: 'var(--font-sans)',
+            color: '#166534', fontWeight: 700,
+          }}
+        >
+          ✅ Hoàn thành
+        </button>
       </div>
     </div>
   );
