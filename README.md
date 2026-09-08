@@ -8,16 +8,14 @@ Hệ thống quản lý phòng khám tích hợp: cấp số thứ tự, tiếp 
 
 - [Tổng quan kiến trúc](#tổng-quan-kiến-trúc)
 - [Yêu cầu hệ thống](#yêu-cầu-hệ-thống)
-- [Cấu trúc thư mục](#cấu-trúc-thư-mục)
 - [Setup Backend](#setup-backend)
-- [Setup Cơ sở dữ liệu](#setup-cơ-sở-dữ-liệu)
-- [Chạy Backend](#chạy-backend)
-- [Frontend Pages (Jinja2 / SPA)](#frontend-pages-jinja2--spa)
-- [Frontpage (Landing Page tĩnh)](#frontpage-landing-page-tĩnh)
-- [Các trang giao diện](#các-trang-giao-diện)
+- [Setup Frontend React](#setup-frontend-react)
+- [Tài khoản test](#tài-khoản-test)
+- [Chạy hệ thống](#chạy-hệ-thống)
 - [API Documentation](#api-documentation)
 - [Biến môi trường](#biến-môi-trường)
 - [Lưu ý Production](#lưu-ý-production)
+- [Tài liệu nghiệp vụ](#tài-liệu-nghiệp-vụ)
 
 ---
 
@@ -25,36 +23,43 @@ Hệ thống quản lý phòng khám tích hợp: cấp số thứ tự, tiếp 
 
 ```
 hospital-core/
-├── app/                    # Backend FastAPI
-│   ├── api/v1/             # REST API endpoints
-│   ├── core/               # Config, security, dependencies
-│   ├── crud/               # Database operations
-│   ├── db/                 # SQLAlchemy session & base
-│   ├── models/             # ORM models (SQLAlchemy)
-│   ├── schemas/            # Pydantic request/response schemas
-│   ├── services/           # Business logic
-│   ├── static/             # CSS, JS phục vụ qua /static
-│   ├── templates/          # Jinja2 HTML templates (các trang nội bộ)
-│   └── main.py             # Entry point FastAPI app
-├── alembic/                # Database migrations
-├── frontend/               # Landing page tĩnh (Phòng Khám Thiện Nhân)
+├── app/                        # Backend FastAPI
+│   ├── api/v1/endpoints/       # REST API endpoints
+│   ├── core/                   # Config, security, dependencies
+│   ├── crud/                   # Database operations
+│   ├── db/                     # SQLAlchemy session & base
+│   ├── models/                 # ORM models (SQLAlchemy)
+│   ├── schemas/                # Pydantic request/response schemas
+│   ├── services/               # Business logic & WebSocket
+│   ├── static/                 # Build output từ hospital-frontend
+│   └── main.py                 # Entry point FastAPI app
+├── alembic/                    # Database migrations
+├── hospital-frontend/          # React + TypeScript app (hệ thống nội bộ)
+│   ├── src/
+│   │   ├── api/                # API client tách riêng theo domain
+│   │   ├── app/                # Router + AppShell + ROUTES
+│   │   ├── components/ui/      # Design system dùng chung
+│   │   ├── features/           # Feature modules độc lập
+│   │   │   ├── auth/           # Login, RBAC, ProtectedRoute
+│   │   │   ├── reception/      # Tiếp đón bệnh nhân
+│   │   │   ├── queue/          # Kiosk, Display, Quản lý hàng chờ
+│   │   │   ├── doctor/         # Hàng đợi bác sĩ
+│   │   │   └── examination/    # Phiếu khám bệnh
+│   │   ├── hooks/              # Shared hooks (useAsync, useWebSocket...)
+│   │   ├── store/              # Zustand state management
+│   │   └── types/              # TypeScript types mirror Python schemas
+│   └── package.json
+├── frontend/                   # Landing page tĩnh (marketing)
 │   ├── index.html
 │   └── assets/
-│       ├── css/style.css
-│       └── js/main.js
-├── .env                    # Biến môi trường (không commit)
-├── .env.example            # Mẫu biến môi trường
-├── requirements.txt        # Python dependencies
-└── alembic.ini             # Cấu hình Alembic
+├── .env                        # Biến môi trường (không commit)
+├── .env.example                # Mẫu biến môi trường
+└── requirements.txt            # Python dependencies
 ```
 
-**Stack:**
-- **Backend:** Python 3.11 · FastAPI · SQLAlchemy (async) · Alembic · PostgreSQL
-- **Auth:** JWT (python-jose) · bcrypt
-- **Real-time:** WebSocket (websockets)
-- **Templates:** Jinja2 · aiofiles
-- **Frontend nội bộ:** HTML/CSS/JS thuần (phục vụ qua FastAPI)
-- **Landing page:** HTML tĩnh (mở trực tiếp trên trình duyệt)
+**Stack Backend:** Python 3.11 · FastAPI · SQLAlchemy async · Alembic · PostgreSQL · JWT · WebSocket
+
+**Stack Frontend:** React 18 · TypeScript strict · Vite · Zustand · react-hook-form + zod · react-hot-toast
 
 ---
 
@@ -64,307 +69,386 @@ hospital-core/
 |---|---|
 | Python | 3.11+ |
 | PostgreSQL | 14+ |
-| pip | 23+ |
-
-> **macOS:** Cài PostgreSQL qua [Homebrew](https://brew.sh): `brew install postgresql@16`  
-> **Linux:** `sudo apt install postgresql postgresql-contrib`  
-> **Windows:** Tải installer tại [postgresql.org](https://www.postgresql.org/download/windows/)
-
----
-
-## Cấu trúc thư mục
-
-Xem sơ đồ ở phần [Tổng quan kiến trúc](#tổng-quan-kiến-trúc).
+| Node.js | 18+ |
+| npm | 9+ |
 
 ---
 
 ## Setup Backend
 
-### 1. Clone repo
+### 1. Tạo virtual environment & cài dependencies
 
 ```bash
-git clone <repo-url>
 cd hospital-core
-```
-
-### 2. Tạo virtual environment
-
-```bash
 python3.11 -m venv venv
-```
-
-Kích hoạt:
-
-```bash
-# macOS / Linux
-source venv/bin/activate
-
-# Windows (Command Prompt)
-venv\Scripts\activate.bat
-
-# Windows (PowerShell)
-venv\Scripts\Activate.ps1
-```
-
-### 3. Cài dependencies
-
-```bash
+source venv/bin/activate        # macOS/Linux
+# venv\Scripts\activate.bat     # Windows
 pip install -r requirements.txt
 ```
 
-### 4. Tạo file `.env`
+### 2. Cấu hình environment
 
 ```bash
 cp .env.example .env
+# Chỉnh sửa .env với thông tin database thực tế
 ```
 
-Mở `.env` và điền thông tin thực tế:
-
-```env
-DATABASE_URL=postgresql+asyncpg://postgres:your_password@localhost:5432/hospital_db
-DATABASE_SYNC_URL=postgresql+psycopg2://postgres:your_password@localhost:5432/hospital_db
-SECRET_KEY=your-very-secret-key-change-this
-DEBUG=True
-APP_NAME=Hospital Queue Management System
-APP_VERSION=1.0.0
-```
-
-> `DATABASE_URL` dùng driver `asyncpg` cho FastAPI runtime.  
-> `DATABASE_SYNC_URL` dùng driver `psycopg2` cho Alembic migration.  
-> `SECRET_KEY` dùng để ký JWT — **bắt buộc thay đổi trước khi lên production**.
-
----
-
-## Setup Cơ sở dữ liệu
-
-### 1. Tạo database PostgreSQL
-
-Đăng nhập vào PostgreSQL:
+### 3. Tạo database & chạy migrations
 
 ```bash
-psql -U postgres
-```
+# Tạo database
+psql -U postgres -c "CREATE DATABASE hospital_db;"
 
-Tạo database:
-
-```sql
-CREATE DATABASE hospital_db;
-\q
-```
-
-### 2. Chạy migrations
-
-Đảm bảo virtual environment đang kích hoạt, sau đó chạy toàn bộ migrations:
-
-```bash
+# Chạy migrations
 alembic upgrade head
 ```
 
-Lệnh này sẽ lần lượt áp dụng các migration:
+### 4. Tạo tài khoản test (lần đầu)
 
-| File | Nội dung |
-|---|---|
-| `0001_initial_schema.py` | Tạo bảng `patients`, `queue_tickets`, `receptions` |
-| `0002_extend_patient_reception.py` | Mở rộng thông tin bệnh nhân và tiếp đón |
-| `0003_add_visit_status_and_auth.py` | Thêm trạng thái lượt khám và bảng `users` |
-| `0004_add_examination_tables.py` | Thêm bảng khám bệnh |
-
-Kiểm tra trạng thái migration hiện tại:
+Sau khi backend đang chạy, tạo tài khoản qua API:
 
 ```bash
-alembic current
-```
+# Admin
+curl -X POST http://localhost:8000/api/v1/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"Admin@123","full_name":"Quản trị viên","role":"admin"}'
 
-Xem lịch sử migration:
+# Bác sĩ
+curl -X POST http://localhost:8000/api/v1/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"username":"doctor","password":"Doctor@123","full_name":"BS. Test Bác Sĩ","role":"doctor","clinic_room":"Phòng 1"}'
 
-```bash
-alembic history --verbose
-```
-
-Rollback về migration trước (nếu cần):
-
-```bash
-alembic downgrade -1
+# Điều dưỡng
+curl -X POST http://localhost:8000/api/v1/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"username":"nurse","password":"Nurse@123","full_name":"ĐD. Test Điều Dưỡng","role":"nurse"}'
 ```
 
 ---
 
-## Chạy Backend
-
-### Development
+## Setup Frontend React
 
 ```bash
+cd hospital-frontend
+npm install
+```
+
+---
+
+## Tài khoản test
+
+> Áp dụng cho môi trường **development**. Thay đổi trước khi lên production.
+
+| Username | Password | Role | Quyền truy cập |
+|----------|----------|------|----------------|
+| `admin` | `Admin@123` | admin | Tất cả chức năng |
+| `doctor` | `Doctor@123` | doctor | Phòng khám bác sĩ + Phiếu khám |
+| `nurse` | `Nurse@123` | nurse | Tiếp đón + Quản lý hàng chờ |
+| `bsphong1` | *(xem DB)* | doctor | Phòng 1 |
+| `bsphong2` | *(xem DB)* | doctor | Phòng 2 |
+
+### Phân quyền chi tiết (RBAC)
+
+| Chức năng | admin | doctor | nurse |
+|-----------|:-----:|:------:|:-----:|
+| Tiếp đón bệnh nhân | ✅ | — | ✅ |
+| Quản lý hàng chờ | ✅ | — | ✅ |
+| Kiosk / Màn hình LED | ✅ | ✅ | ✅ |
+| Hàng đợi bác sĩ | ✅ | ✅ | — |
+| Phiếu khám bệnh | ✅ | ✅ | — |
+
+---
+
+## Chạy hệ thống
+
+### Chạy tất cả cùng lúc (mở 3 terminal riêng)
+admin	Admin@123	Tất cả chức năng
+doctor	Doctor@123	Phòng khám + Phiếu khám
+nurse	Nurse@123	Tiếp đón + Hàng chờ
+
+**Terminal 1 — Backend FastAPI:**
+```bash
+cd hospital-core
+source venv/bin/activate
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-- `--reload`: Tự động restart khi có thay đổi code (chỉ dùng trong dev).
-- `--host 0.0.0.0`: Cho phép truy cập từ các thiết bị trong cùng mạng LAN.
-- `--port 8000`: Port mặc định (có thể thay đổi).
+**Terminal 2 — Frontend React (dev):**
+```bash
+cd hospital-core/hospital-frontend
+npm run dev
+```
 
-### Production
+**Terminal 3 — Landing page (tuỳ chọn):**
+```bash
+cd hospital-core/frontend
+python3 -m http.server 5500
+```
+
+### URLs
+
+| URL | Mô tả | Ghi chú |
+|-----|-------|---------|
+| `http://localhost:5173` | **React App** — Hệ thống quản lý nội bộ | Cần đăng nhập |
+| `http://localhost:5500` | Landing page Thiện Nhân | Không cần đăng nhập |
+| `http://localhost:8000/docs` | Swagger UI API | Dev only |
+| `http://localhost:8000/display` | Màn hình LED số thứ tự | Jinja2 (cũ) |
+| `http://localhost:8000/kiosk` | Kiosk lấy số | Jinja2 (cũ) |
+
+### Build production (output vào `app/static/dist/`)
 
 ```bash
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
+cd hospital-frontend
+npm run build
 ```
-
-- `--workers 4`: Chạy 4 worker process (khuyến nghị `2 × CPU cores + 1`).
-- Không dùng `--reload` trong production.
-
-Sau khi khởi động, backend phục vụ tại:
-
-| URL | Mô tả |
-|---|---|
-| `http://localhost:8000` | Trang chủ (chọn vai trò) |
-| `http://localhost:8000/display` | Màn hình LED số thứ tự |
-| `http://localhost:8000/kiosk` | Kiosk lấy số |
-| `http://localhost:8000/reception` | Quầy tiếp đón |
-| `http://localhost:8000/docs` | Swagger UI (API docs) |
-| `http://localhost:8000/redoc` | ReDoc (API docs) |
-| `http://localhost:8000/health` | Health check endpoint |
-
----
-
-## Frontend Pages (Jinja2 / SPA)
-
-Các trang nội bộ (dành cho nhân viên y tế và bệnh nhân) được phục vụ **bởi FastAPI** qua Jinja2 templates, không cần build tool riêng.
-
-Thư mục:
-- **Templates HTML:** `app/templates/` — các file `.html` được render server-side
-- **Static assets:** `app/static/css/` và `app/static/js/` — phục vụ tại `/static/`
-
-Sau khi backend đang chạy, truy cập trực tiếp qua trình duyệt:
-
-```
-http://localhost:8000/           # Trang chủ chọn vai trò
-http://localhost:8000/kiosk      # Kiosk bệnh nhân lấy số
-http://localhost:8000/display    # Màn hình LED số thứ tự
-http://localhost:8000/reception  # Quầy tiếp đón
-```
-
-> Không cần `npm install`, không cần build — các trang này chạy thuần HTML/CSS/JS, FastAPI phục vụ file tĩnh và render template trực tiếp.
-
----
-
-## Frontpage (Landing Page tĩnh)
-
-Thư mục `frontend/` chứa landing page **Phòng Khám Thiện Nhân** — trang giới thiệu dành cho bệnh nhân bên ngoài, hoàn toàn độc lập với backend.
-
-### Mở nhanh trên trình duyệt
-
-Chỉ cần mở file HTML trực tiếp:
-
-```bash
-# macOS
-open frontend/index.html
-
-# Linux
-xdg-open frontend/index.html
-
-# Windows
-start frontend/index.html
-```
-
-Hoặc kéo file `frontend/index.html` vào cửa sổ trình duyệt.
-
-### Phục vụ qua HTTP server cục bộ (khuyến nghị)
-
-Mở bằng file:// có thể gặp lỗi CORS với một số font/asset. Dùng HTTP server đơn giản:
-
-```bash
-# Dùng Python (không cần cài thêm gì)
-cd frontend
-python3 -m http.server 3000
-```
-
-Truy cập tại: `http://localhost:3000`
-
-```bash
-# Hoặc dùng Node.js npx
-cd frontend
-npx serve .
-```
-
-> Landing page này **không kết nối** đến backend API — chỉ là trang giới thiệu phòng khám với thông tin, dịch vụ, đội ngũ bác sĩ và form liên hệ tĩnh.
-
----
-
-## Các trang giao diện
-
-### 1. Landing Page — `frontend/index.html`
-
-Trang giới thiệu phòng khám dành cho bệnh nhân bên ngoài.
-
-- Hero section với CTA đặt lịch
-- Danh sách dịch vụ khám bệnh
-- Giới thiệu đội ngũ bác sĩ
-- Thống kê phòng khám
-- Form đặt lịch / liên hệ
-- Font: Be Vietnam Pro · Playfair Display
-
-### 2. Trang chủ nội bộ — `GET /`
-
-Màn hình chọn vai trò: điều hướng đến Kiosk, Màn hình LED, hoặc Quầy tiếp đón.
-
-### 3. Kiosk — `GET /kiosk`
-
-Giao diện bệnh nhân tự lấy số thứ tự.
-- Kết nối WebSocket room `"kiosk"` để theo dõi số đang được gọi real-time.
-
-### 4. Màn hình LED — `GET /display`
-
-Hiển thị số thứ tự đang được gọi trên màn hình lớn.
-- Kết nối WebSocket room `"display"` để cập nhật tự động.
-
-### 5. Quầy tiếp đón — `GET /reception`
-
-Giao diện nhân viên y tế quản lý hàng đợi.
-- Kết nối WebSocket room `"reception"`.
-- Gọi số, check-in, cập nhật trạng thái bệnh nhân.
 
 ---
 
 ## API Documentation
 
-Sau khi backend đang chạy, toàn bộ API được document tự động tại:
+Backend đang chạy, truy cập:
 
 - **Swagger UI:** `http://localhost:8000/docs`
 - **ReDoc:** `http://localhost:8000/redoc`
+- **Health check:** `http://localhost:8000/health`
 
-Nhóm API chính:
-
-| Prefix | Module | Mô tả |
-|---|---|---|
-| `/api/v1/auth` | `auth.py` | Đăng nhập, lấy JWT token |
-| `/api/v1/queue` | `queue.py` | Cấp số, gọi số, WebSocket |
-| `/api/v1/patients` | `patients.py` | CRUD bệnh nhân |
-| `/api/v1/reception` | `reception.py` | Quản lý tiếp đón |
-| `/api/v1/doctor` | `doctor.py` | Giao diện bác sĩ |
-| `/api/v1/examination` | `examination.py` | Quản lý khám bệnh |
+| Prefix | Mô tả |
+|--------|-------|
+| `POST /api/v1/auth/login` | Đăng nhập, nhận JWT |
+| `GET  /api/v1/auth/me` | Thông tin tài khoản hiện tại |
+| `GET  /api/v1/patients` | Danh sách bệnh nhân |
+| `GET  /api/v1/receptions` | Danh sách tiếp đón |
+| `GET  /api/v1/doctor/queue` | Hàng đợi khám theo phòng |
+| `GET  /api/v1/examinations/{id}` | Chi tiết phiếu khám |
+| `WS   /api/v1/queue/ws/{room}` | WebSocket real-time |
 
 ---
 
 ## Biến môi trường
 
 | Biến | Mô tả | Mặc định |
-|---|---|---|
+|------|-------|----------|
 | `DATABASE_URL` | Connection string async (asyncpg) | `postgresql+asyncpg://postgres:password@localhost:5432/hospital_db` |
-| `DATABASE_SYNC_URL` | Connection string đồng bộ (psycopg2) | `postgresql+psycopg2://postgres:password@localhost:5432/hospital_db` |
+| `DATABASE_SYNC_URL` | Connection string đồng bộ (psycopg2) | `postgresql+psycopg2://...` |
 | `SECRET_KEY` | Khoá bí mật ký JWT | `changeme-in-production` |
 | `DEBUG` | Bật chế độ debug | `True` |
-| `APP_NAME` | Tên ứng dụng | `Hospital Queue Management System` |
-| `APP_VERSION` | Phiên bản ứng dụng | `1.0.0` |
-| `JWT_ALGORITHM` | Thuật toán ký JWT | `HS256` |
-| `JWT_ACCESS_TOKEN_EXPIRE_MINUTES` | Thời gian sống access token (phút) | `480` (8 giờ) |
 
 ---
 
 ## Lưu ý Production
 
-- Đổi `SECRET_KEY` thành chuỗi ngẫu nhiên đủ dài:
-  ```bash
-  python3 -c "import secrets; print(secrets.token_hex(32))"
-  ```
-- Đặt `DEBUG=False` để giảm log level và tắt SQL echo.
-- Thay `allow_origins=["*"]` trong `main.py` bằng domain cụ thể.
-- Chạy sau reverse proxy (nginx / caddy) để xử lý TLS.
-- Không commit file `.env` vào git (đã có trong `.gitignore`).
+```bash
+# Tạo SECRET_KEY ngẫu nhiên
+python3 -c "import secrets; print(secrets.token_hex(32))"
+```
+
+- Đặt `DEBUG=False`
+- Thay `allow_origins=["*"]` bằng domain cụ thể
+- Chạy sau reverse proxy (nginx / caddy) để xử lý TLS
+- Không commit file `.env`
+
+---
+
+## Tài liệu nghiệp vụ
+
+### B.3 Luồng nghiệp vụ chi tiết — Khám bệnh
+
+#### Bước 1 — Bác sĩ chọn bệnh nhân từ hàng đợi
+
+Danh sách chờ khám hiển thị theo phòng khám của bác sĩ đang đăng nhập, sắp xếp theo thứ tự số/thời gian đến. Trạng thái từng bệnh nhân:
+
+| Trạng thái | Ý nghĩa |
+|------------|---------|
+| ⏳ Chờ khám | Mặc định — vừa được chuyển từ tiếp đón sang |
+| 🔬 Đi làm CLS | Bệnh nhân đang đi làm xét nghiệm/CĐHA, chưa quay lại |
+| 📋 Có kết quả | CLS đã trả kết quả, bệnh nhân sẵn sàng được gọi lại |
+| 📅 Tái khám | Bệnh nhân quay lại theo lịch hẹn đã đặt trước |
+
+Bác sĩ gọi bệnh nhân tiếp theo, hoặc chọn trực tiếp bất kỳ bệnh nhân nào trong danh sách (ví dụ ưu tiên ca "Có kết quả").
+
+#### Bước 2 — Xem lại thông tin & bệnh sử
+
+- Thông tin hành chính bệnh nhân
+- Lịch sử các lần khám trước (ngày giờ, phòng khám, chẩn đoán/đơn thuốc từng lần)
+- Giấy chuyển tuyến / giới thiệu (nếu có)
+
+#### Bước 3 — Ghi nhận thăm khám & chẩn đoán
+
+- Dấu hiệu sinh tồn (nhiệt độ, huyết áp, nhịp tim, nhịp thở, SpO₂, cân nặng, chiều cao — BMI tự tính)
+- Triệu chứng lâm sàng (mô tả tự do)
+- Chẩn đoán ICD-10 (1 chẩn đoán chính bắt buộc + nhiều chẩn đoán phụ)
+- Biến chứng nếu có
+
+#### Bước 4 — Chỉ định & kê đơn
+
+Trong quá trình khám, bác sĩ có thể:
+
+- **Chỉ định CLS** → vòng lặp: chẩn đoán sơ bộ → chỉ định CLS → có kết quả → chẩn đoán xác định
+- **Kê đơn thuốc BHYT** (Phần C)
+- **Kê đơn thuốc ngoài** (Phần C.2)
+- **Chỉ định tạm ứng** (Phần F) — nếu chi phí dự kiến lớn
+
+Chi phí real-time hiển thị ngay trên màn hình (tách CLS / Thuốc, BHYT chi trả / BN chi trả).
+
+#### Bước 5 — Quyết định hướng xử trí
+
+> Chỉ được chọn **1** hướng, các hướng loại trừ lẫn nhau.
+
+| Hướng xử trí | Ý nghĩa |
+|-------------|---------|
+| Điều trị ngoại trú, cho về | Kết thúc lượt khám, bệnh nhân về nhà |
+| Hẹn tái khám | Kích hoạt luồng Hẹn khám (Phần H) |
+| Chuyển phòng khám | Đẩy sang hàng đợi phòng khám khác |
+| Chuyển phòng lưu / cấp cứu | Chuyển sang khu lưu bệnh/cấp cứu |
+| Nhập viện | Kích hoạt luồng nhập viện — chọn khoa/phòng |
+| Chuyển tuyến / chuyển viện | Ghi rõ nơi chuyển đến; chuẩn bị giấy chuyển tuyến BHYT |
+| Bỏ về (không hoàn tất khám) | Bệnh nhân tự ý bỏ về — ghi nhận, không tính hoàn tất |
+| Cấp toa bệnh mãn tính | Thời hạn đơn dài hơn thông thường |
+| Tử vong | Quy trình đặc biệt — đóng hồ sơ, viện phí riêng |
+
+Nếu chọn **Hẹn tái khám**: nhập thêm kết quả điều trị hiện tại (không thay đổi / đỡ / khỏi...).
+
+#### Bước 6 — Hoàn tất phiếu khám
+
+**Điều kiện bắt buộc trước khi hoàn tất:**
+1. ✅ Không còn chỉ định CLS nào đang ở trạng thái "chưa có kết quả"
+2. ✅ Đã có ít nhất 1 chẩn đoán chính (không để trống)
+3. ✅ Đối chiếu tạm ứng đã thu vs chi phí thực tế (nếu có tạm ứng)
+4. ✅ Bác sĩ ký số phiếu khám
+
+Sau khi ký số, phiếu bị khoá. Mọi chỉnh sửa sau đó phải qua nghiệp vụ "trình ký lại".
+
+---
+
+### B.4 Ràng buộc & quy tắc quan trọng
+
+- Một bệnh nhân **luôn có 1 chẩn đoán chính** — không được để trống khi hoàn tất
+- **Không cho hoàn tất** khi còn chỉ định CLS chưa có kết quả
+- Hướng xử trí "Nhập viện" / "Chuyển tuyến" phải kèm đủ thông tin bắt buộc
+
+---
+
+### Phần C — Đơn thuốc (BHYT & ngoài)
+
+#### C.1 Phân loại đơn thuốc
+
+| Loại | BHYT chi trả | Trừ tồn kho | Tính viện phí |
+|------|:---:|:---:|:---:|
+| Thuốc BHYT | ✅ Có (theo tỷ lệ) | ✅ | ✅ |
+| Thu phí nội bộ | ❌ | ✅ | ✅ (100% BN) |
+| Mua ngoài (giấy kê) | ❌ | ❌ | ❌ |
+
+#### C.2 Luồng BHYT
+
+- Chỉ chọn thuốc trong danh mục BHYT **đã trúng thầu** tại cơ sở
+- Hệ thống tự tính: tỷ lệ chi trả theo đối tượng chính sách + trái/đúng tuyến
+- Kiểm tra: tương tác thuốc · trùng hoạt chất · chống chỉ định dị ứng · tồn kho · trần thanh toán BHYT
+- Sau xác nhận → chờ Dược xác nhận giữ chỗ tồn kho
+
+#### C.3 Luồng ngoài BHYT
+
+- Thu phí nội bộ: kiểm tra tồn kho + an toàn thuốc (không kiểm tra danh mục BHYT)
+- Mua ngoài: nhập tên tự do, không trừ kho, chỉ in giấy cho BN, không vào viện phí
+
+---
+
+### Phần D — Chỉ định cận lâm sàng (CLS)
+
+- Chọn từ danh mục kỹ thuật → hệ thống biết phòng thực hiện tương ứng
+- Xác định loại chi trả: BHYT · thu phí · theo yêu cầu · khám sức khoẻ · miễn phí · trẻ dưới 6 · tiêm chủng · trả sau
+- Đánh dấu ưu tiên: thường quy / ưu tiên / cấp cứu
+- Ghi chú lâm sàng gửi kèm cho phòng thực hiện
+- Kiểm tra trùng chỉ định trong ngày → cảnh báo (vẫn cho phép nếu bác sĩ xác nhận)
+- **Ràng buộc trung tâm:** Không thể hoàn tất khám khi còn CLS chưa có kết quả
+
+---
+
+### Phần E — Dấu hiệu sinh tồn
+
+| Chỉ số | Ghi chú |
+|--------|---------|
+| Nhiệt độ (°C) | Ngưỡng hợp lệ vật lý bắt buộc |
+| Huyết áp (mmHg) | |
+| Nhịp tim (lần/phút) | Ngưỡng theo độ tuổi |
+| Nhịp thở (lần/phút) | |
+| SpO₂ (%) | |
+| Cân nặng (kg) | |
+| Chiều cao (cm) | |
+| BMI | **Tự tính** — không cho nhập tay |
+
+- Cảnh báo ngay nếu chỉ số nằm ngoài ngưỡng bình thường (theo độ tuổi BN)
+- Hiển thị xu hướng thay đổi qua thời gian (với nội trú đo nhiều lần)
+- Với nội trú: nhắc điều dưỡng nếu quá giờ cấu hình mà chưa có lượt đo mới
+
+---
+
+### Phần F — Chỉ định tạm ứng
+
+**Luồng:**
+1. Bác sĩ tạo yêu cầu tạm ứng (ghi lý do + số tiền đề xuất)
+2. Thu ngân xác nhận + thu tiền thực tế (có thể khác đề xuất)
+3. Đối chiếu tổng tạm ứng vs chi phí thực khi kết toán:
+   - Dư → hoàn lại BN
+   - Thiếu → thu thêm trước khi cho về
+4. Nếu lượt khám bị huỷ → quy trình hoàn tiền riêng
+
+---
+
+### Phần G — Xem kết quả CLS
+
+- Khi có kết quả → bệnh nhân trong hàng đợi bác sĩ đổi trạng thái thành "📋 Có kết quả"
+- Hiển thị bảng chỉ số + đơn vị + khoảng tham chiếu; **đánh dấu nổi bật** nếu ngoài tham chiếu
+- So sánh với lần khám trước cùng loại xét nghiệm (xu hướng thay đổi)
+- Bác sĩ phải **chủ động đánh dấu đã xem** (chỉ hợp lệ sau khi mở xem chi tiết)
+- Kết quả nguy hiểm nghiêm trọng → cảnh báo chủ động, không chỉ màu đỏ thụ động
+
+---
+
+### Phần H — Hẹn khám
+
+- Tạo ngay khi bác sĩ chọn hướng "Hẹn tái khám" ở Bước 5
+- Gợi ý phòng khám/bác sĩ giống lần hiện tại
+- Gửi nhắc lịch tự động trước ngày hẹn (theo cấu hình)
+- Khi BN quay lại: tiếp đón tự nhận diện lịch hẹn và hiển thị ngay
+- Quá hẹn không đến → tự động đánh dấu "bỏ lỡ" → bộ phận CSKH có thể liên hệ lại
+- 1 BN có thể có nhiều lịch hẹn đồng thời (nhiều chuyên khoa khác nhau)
+
+---
+
+### Phần I — Giấy nghỉ hưởng BHXH
+
+**Yêu cầu bắt buộc:**
+- Đã có chẩn đoán rõ ràng (mã bệnh là trường bắt buộc trên giấy)
+- Mỗi giấy gắn số seri phôi duy nhất (không tái sử dụng dù đã huỷ)
+- Số ngày nghỉ ≤ giới hạn tối đa theo loại bệnh; vượt mức → cần xác nhận lý do đặc biệt
+- Bác sĩ ký số
+- Gửi liên thông điện tử lên cổng BHXH → mới tính là "đã cấp" hợp lệ
+- Nếu gửi thất bại: cho thử lại, **không tạo giấy trùng lặp**
+
+---
+
+### Phần J — Mối liên kết giữa các chức năng
+
+```
+Tiếp đón (A)
+    │  Đối tượng chính sách + thông tuyến
+    ▼
+Khám bệnh (B) ←──────────────────────────────────┐
+    │                                              │
+    ├─→ Đơn thuốc BHYT (C.2)    ← tỷ lệ từ (A)   │
+    ├─→ Đơn thuốc ngoài (C.3)                     │
+    ├─→ Chỉ định CLS (D) ───→ Kết quả CLS (G) ────┘
+    ├─→ Dấu hiệu sinh tồn (E)                     (vòng lặp khám)
+    ├─→ Tạm ứng (F) ───→ Đối chiếu khi hoàn tất
+    ├─→ Hẹn tái khám (H) ───→ Tiếp đón lần sau (A)
+    └─→ Giấy BHXH (I)
+
+Ràng buộc trung tâm (không thể bỏ qua):
+    ✗ Hoàn tất khám khi còn CLS chưa có kết quả
+    ✗ Hoàn tất khám khi chưa có chẩn đoán chính
+    ✗ Hoàn tất khám khi chưa đối chiếu tạm ứng
+```
+
+---
+
+*Phần mềm thiết kế bởi **Nguyễn Quang Huy***
