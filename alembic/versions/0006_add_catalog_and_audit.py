@@ -138,7 +138,7 @@ def upgrade() -> None:
         "audit_logs",
         sa.Column("id",          sa.Integer(),             nullable=False),
         sa.Column("created_at",  sa.DateTime(timezone=True),
-                  server_default=sa.text("now()"), nullable=False, index=True),
+                  server_default=sa.text("now()"), nullable=False),
         sa.Column("user_id",     sa.Integer(),             nullable=True),
         sa.Column("username",    sa.String(100),           nullable=True),
         sa.Column("action",      sa.String(20),            nullable=False),
@@ -150,13 +150,13 @@ def upgrade() -> None:
         sa.Column("description", sa.String(500),           nullable=True),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index(op.f("ix_audit_logs_id"),           "audit_logs", ["id"])
-    op.create_index(op.f("ix_audit_logs_created_at"),   "audit_logs", ["created_at"])
-    op.create_index(op.f("ix_audit_logs_user_id"),      "audit_logs", ["user_id"])
-    op.create_index(op.f("ix_audit_logs_action"),       "audit_logs", ["action"])
-    op.create_index(op.f("ix_audit_logs_table_name"),   "audit_logs", ["table_name"])
-    op.create_index("ix_audit_logs_table_record",       "audit_logs", ["table_name", "record_id"])
-    op.create_index("ix_audit_logs_user_created",       "audit_logs", ["user_id", "created_at"])
+    op.create_index(op.f("idx_audit_logs_id"),           "audit_logs", ["id"])
+    op.create_index(op.f("idx_audit_logs_created_at"),   "audit_logs", ["created_at"])
+    op.create_index(op.f("idx_audit_logs_user_id"),      "audit_logs", ["user_id"])
+    op.create_index(op.f("idx_audit_logs_action"),       "audit_logs", ["action"])
+    op.create_index(op.f("idx_audit_logs_table_name"),   "audit_logs", ["table_name"])
+    op.create_index("idx_audit_logs_table_record",       "audit_logs", ["table_name", "record_id"])
+    op.create_index("idx_audit_logs_user_created",       "audit_logs", ["user_id", "created_at"])
 
 
 def downgrade() -> None:
