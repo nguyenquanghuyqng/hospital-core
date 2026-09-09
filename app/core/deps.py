@@ -1,9 +1,21 @@
 """
 FastAPI dependencies dùng chung cho tất cả endpoints.
 
-Cung cấp các dependency injection functions để:
-- Xác thực người dùng từ Bearer JWT token.
-- Phân quyền theo role (doctor / admin).
+Phân quyền theo 5 vai trò:
+  doctor      — bác sĩ: khám bệnh, kê đơn, chỉ định CLS
+  nurse       — điều dưỡng: ghi vital signs, hỗ trợ khám
+  receptionist— lễ tân: tiếp đón, hồ sơ bệnh nhân, hàng đợi
+  cashier     — thu ngân: viện phí, thanh toán, hóa đơn
+  admin       — quản trị: toàn quyền
+
+Ma trận quyền:
+  require_doctor        → doctor | admin
+  require_nurse         → nurse | doctor | admin
+  require_receptionist  → receptionist | admin
+  require_cashier       → cashier | admin
+  require_clinical      → doctor | nurse | admin          (mọi lâm sàng)
+  require_admin         → admin only
+  get_current_user      → mọi role đã xác thực
 """
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
@@ -16,32 +28,25 @@ from app.models.user import User
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
-# Valid roles that may perform clinical actions
-_DOCTOR_ROLES = frozenset({"doctor", "admin"})
+# ── Role sets ─────────────────────────────────────────────────────────────────
+_ALL_ROLES          = frozenset({"doctor", "nurse", "receptionist", "cashier", "admin"})
+_DOCTOR_ROLES       = frozenset({"doctor", "admin"})
+_NURSE_ROLES        = frozenset({"nurse", "doctor", "admin"})
+_CLINICAL_ROLES     = frozenset({"doctor", "nurse", "admin"})
+_RECEPTIONIST_ROLES = frozenset({"receptionist", "admin"})
+_CASHIER_ROLES      = frozenset({"cashier", "admin"})
+_ADMIN_ROLES        = frozenset({"admin"})
 
+
+# ── Base auth ─────────────────────────────────────────────────────────────────
 
 async def get_current_user(
     token: str = Depends(oauth2_scheme),
     db: AsyncSession = Depends(get_db),
 ) -> User:
     """
-    Dependency: xác thực Bearer JWT và trả về user đang đăng nhập.
-
-    Luồng xử lý:
-    1. Trích xuất token từ header ``Authorization: Bearer <token>``.
-    2. Giải mã JWT, lấy ``sub`` (user id).
-    3. Tra cứu user trong database.
-    4. Kiểm tra user tồn tại và đang active.
-
-    Args:
-        token: JWT access token từ OAuth2 bearer scheme.
-        db: Async database session (injected).
-
-    Returns:
-        Đối tượng :class:`User` tương ứng với token.
-
-    Raises:
-        HTTPException 401: Token không hợp lệ, hết hạn, hoặc user không tồn tại / bị khoá.
+    Dependency cơ bản: xác thực Bearer JWT, trả về user đang đăng nhập.
+    Dùng cho mọi endpoint yêu cầu đăng nhập (bất kể role).
     """
     credentials_exc = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -52,10 +57,8 @@ async def get_current_user(
     if payload is None:
         raise credentials_exc
 
-    raw_sub = payload.get("sub")
-    # Guard: sub must be a numeric string (user id)
     try:
-        user_id = int(raw_sub)
+        user_id = int(payload.get("sub"))
     except (TypeError, ValueError):
         raise credentials_exc
 
@@ -66,24 +69,24 @@ async def get_current_user(
     return user
 
 
-async def require_doctor(current_user: User = Depends(get_current_user)) -> User:
-    """
-    Dependency: chỉ cho phép role ``doctor`` hoặc ``admin`` truy cập.
+# ── Role-specific dependencies ────────────────────────────────────────────────
 
-    Được dùng trên các endpoint lâm sàng (phiếu khám, hàng đợi bác sĩ, v.v.).
+def _make_require(allowed: frozenset, label: str):
+    """Factory tạo dependency kiểm tra role, tránh lặp code."""
+    async def _require(current_user: User = Depends(get_current_user)) -> User:
+        if current_user.role not in allowed:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Quyền truy cập yêu cầu: {label}",
+            )
+        return current_user
+    _require.__name__ = f"require_{label}"
+    return _require
 
-    Args:
-        current_user: User đã xác thực (injected từ :func:`get_current_user`).
 
-    Returns:
-        Đối tượng :class:`User` nếu role hợp lệ.
-
-    Raises:
-        HTTPException 403: User không có role doctor hoặc admin.
-    """
-    if current_user.role not in _DOCTOR_ROLES:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Chỉ bác sĩ hoặc admin mới có quyền truy cập",
-        )
-    return current_user
+require_doctor       = _make_require(_DOCTOR_ROLES,       "doctor / admin")
+require_nurse        = _make_require(_NURSE_ROLES,        "nurse / doctor / admin")
+require_clinical     = _make_require(_CLINICAL_ROLES,     "doctor / nurse / admin")
+require_receptionist = _make_require(_RECEPTIONIST_ROLES, "receptionist / admin")
+require_cashier      = _make_require(_CASHIER_ROLES,      "cashier / admin")
+require_admin        = _make_require(_ADMIN_ROLES,        "admin")

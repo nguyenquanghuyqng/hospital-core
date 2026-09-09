@@ -33,7 +33,7 @@ class User(Base, TimestampMixin):
     hashed_password = Column(String(200), nullable=False)
     full_name       = Column(String(100), nullable=True,  comment="Họ tên hiển thị")
     role            = Column(String(20),  nullable=False, default="doctor", server_default="doctor",
-                             comment="doctor | nurse | admin")
+                             comment="doctor | nurse | receptionist | cashier | admin")
     clinic_room     = Column(String(50),  nullable=True,  comment="Phòng khám phụ trách")
     is_active       = Column(Boolean,     nullable=False, default=True, server_default="true")
 
