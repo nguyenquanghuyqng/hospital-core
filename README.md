@@ -22,39 +22,40 @@ Hệ thống quản lý phòng khám tích hợp: cấp số thứ tự, tiếp 
 ## Tổng quan kiến trúc
 
 ```
-hospital-core/
-├── app/                        # Backend FastAPI
-│   ├── api/v1/endpoints/       # REST API endpoints
-│   ├── core/                   # Config, security, dependencies
-│   ├── crud/                   # Database operations
-│   ├── db/                     # SQLAlchemy session & base
-│   ├── models/                 # ORM models (SQLAlchemy)
-│   ├── schemas/                # Pydantic request/response schemas
-│   ├── services/               # Business logic & WebSocket
-│   ├── static/                 # Build output từ hospital-frontend
-│   └── main.py                 # Entry point FastAPI app
-├── alembic/                    # Database migrations
-├── hospital-frontend/          # React + TypeScript app (hệ thống nội bộ)
-│   ├── src/
-│   │   ├── api/                # API client tách riêng theo domain
-│   │   ├── app/                # Router + AppShell + ROUTES
-│   │   ├── components/ui/      # Design system dùng chung
-│   │   ├── features/           # Feature modules độc lập
-│   │   │   ├── auth/           # Login, RBAC, ProtectedRoute
-│   │   │   ├── reception/      # Tiếp đón bệnh nhân
-│   │   │   ├── queue/          # Kiosk, Display, Quản lý hàng chờ
-│   │   │   ├── doctor/         # Hàng đợi bác sĩ
-│   │   │   └── examination/    # Phiếu khám bệnh
-│   │   ├── hooks/              # Shared hooks (useAsync, useWebSocket...)
-│   │   ├── store/              # Zustand state management
-│   │   └── types/              # TypeScript types mirror Python schemas
-│   └── package.json
-├── frontend/                   # Landing page tĩnh (marketing)
-│   ├── index.html
-│   └── assets/
-├── .env                        # Biến môi trường (không commit)
-├── .env.example                # Mẫu biến môi trường
-└── requirements.txt            # Python dependencies
+GITHUB/
+├── hospital-core/              # Backend FastAPI
+│   ├── app/
+│   │   ├── api/v1/endpoints/   # REST API endpoints
+│   │   ├── core/               # Config, security, dependencies
+│   │   ├── crud/               # Database operations
+│   │   ├── db/                 # SQLAlchemy session & base
+│   │   ├── models/             # ORM models (SQLAlchemy)
+│   │   ├── schemas/            # Pydantic request/response schemas
+│   │   ├── services/           # Business logic & WebSocket
+│   │   ├── static/             # Static assets (legacy Jinja2)
+│   │   └── main.py             # Entry point FastAPI app
+│   ├── alembic/                # Database migrations
+│   ├── frontend/               # Landing page tĩnh (marketing)
+│   ├── .env                    # Biến môi trường (không commit)
+│   ├── .env.example
+│   └── requirements.txt
+│
+└── hospital-frontend/          # Frontend React + TypeScript
+    ├── src/
+    │   ├── api/                # API client tách riêng theo domain
+    │   ├── app/                # Router + AppShell + ROUTES
+    │   ├── components/ui/      # Design system dùng chung
+    │   ├── features/           # Feature modules độc lập
+    │   │   ├── auth/           # Login, RBAC, ProtectedRoute
+    │   │   ├── reception/      # Tiếp đón bệnh nhân
+    │   │   ├── queue/          # Kiosk, Display, Quản lý hàng chờ
+    │   │   ├── doctor/         # Hàng đợi bác sĩ
+    │   │   └── examination/    # Phiếu khám bệnh
+    │   ├── hooks/              # Shared hooks (useAsync, useWebSocket...)
+    │   ├── store/              # Zustand state management
+    │   └── types/              # TypeScript types mirror Python schemas
+    ├── .env.example
+    └── package.json
 ```
 
 **Stack Backend:** Python 3.11 · FastAPI · SQLAlchemy async · Alembic · PostgreSQL · JWT · WebSocket
@@ -129,7 +130,7 @@ curl -X POST http://localhost:8000/api/v1/auth/register \
 ## Setup Frontend React
 
 ```bash
-cd hospital-frontend
+cd ../hospital-frontend    # từ hospital-core/
 npm install
 ```
 
@@ -175,7 +176,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 **Terminal 2 — Frontend React (dev):**
 ```bash
-cd hospital-core/hospital-frontend
+cd ../hospital-frontend    # cùng cấp với hospital-core
 npm run dev
 ```
 

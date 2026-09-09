@@ -101,85 +101,72 @@ class DoctorService:
         self,
         db: AsyncSession,
         *,
-        clinic_room: str,
+        clinic_room: Optional[str],
         visit_date: date,
     ) -> List[Reception]:
         """
-        Lấy danh sách bệnh nhân đang CHECKED_IN tại phòng trong ngày.
+        Lấy danh sách bệnh nhân đang CHECKED_IN trong ngày.
 
-        Sắp xếp: ưu tiên cao → số khám tăng dần → id tăng dần.
-
-        Args:
-            db: Async database session.
-            clinic_room: Tên phòng khám.
-            visit_date: Ngày khám cần tra.
-
-        Returns:
-            Danh sách :class:`~app.models.reception.Reception` với ``patient`` đã load.
+        Nếu ``clinic_room`` là ``None`` → trả về tất cả phòng (dành cho admin).
         """
-        result = await db.execute(
+        query = (
             select(Reception)
             .options(selectinload(Reception.patient))
             .where(
-                and_(
-                    Reception.visit_date == visit_date,
-                    Reception.clinic_room == clinic_room,
-                    Reception.status == ReceptionStatus.CHECKED_IN,
-                )
-            )
-            .order_by(
-                Reception.priority.desc(),
-                Reception.visit_number.asc(),
-                Reception.id.asc(),
+                Reception.visit_date == visit_date,
+                Reception.status == ReceptionStatus.CHECKED_IN,
             )
         )
+        if clinic_room:
+            query = query.where(Reception.clinic_room == clinic_room)
+
+        query = query.order_by(
+            Reception.priority.desc(),
+            Reception.visit_number.asc(),
+            Reception.id.asc(),
+        )
+        result = await db.execute(query)
         return list(result.scalars().all())
 
     async def get_queue_stats(
         self,
         db: AsyncSession,
         *,
-        clinic_room: str,
+        clinic_room: Optional[str],
         visit_date: date,
     ) -> QueueStatsResponse:
         """
-        Thống kê nhanh số BN theo từng ``visit_status`` tại phòng trong ngày.
+        Thống kê nhanh số BN theo từng ``visit_status`` trong ngày.
 
-        Args:
-            db: Async database session.
-            clinic_room: Tên phòng khám cần thống kê.
-            visit_date: Ngày cần thống kê.
-
-        Returns:
-            :class:`~app.schemas.doctor.QueueStatsResponse`.
+        Nếu ``clinic_room`` là ``None`` → thống kê tất cả phòng.
         """
+        base_active = [
+            Reception.visit_date == visit_date,
+            Reception.status == ReceptionStatus.CHECKED_IN,
+        ]
+        base_done = [
+            Reception.visit_date == visit_date,
+            Reception.status == ReceptionStatus.COMPLETED,
+        ]
+        if clinic_room:
+            base_active.append(Reception.clinic_room == clinic_room)
+            base_done.append(Reception.clinic_room == clinic_room)
+
         active_result = await db.execute(
             select(Reception.visit_status, func.count(Reception.id))
-            .where(
-                and_(
-                    Reception.visit_date == visit_date,
-                    Reception.clinic_room == clinic_room,
-                    Reception.status == ReceptionStatus.CHECKED_IN,
-                )
-            )
+            .where(and_(*base_active))
             .group_by(Reception.visit_status)
         )
         counts = {r[0]: r[1] for r in active_result.all()}
 
         done_result = await db.execute(
-            select(func.count(Reception.id)).where(
-                and_(
-                    Reception.visit_date == visit_date,
-                    Reception.clinic_room == clinic_room,
-                    Reception.status == ReceptionStatus.COMPLETED,
-                )
-            )
+            select(func.count(Reception.id)).where(and_(*base_done))
         )
         done_count = done_result.scalar_one() or 0
         active_total = sum(counts.values())
 
         return QueueStatsResponse(
-            clinic_room=clinic_room,
+            clinic_room=clinic_room or "Tất cả",
             visit_date=visit_date,
             total=active_total + done_count,
             waiting=counts.get(VisitStatus.WAITING, 0),
