@@ -183,8 +183,8 @@ class ExaminationCreate(BaseModel):
     """
     Schema tạo phiếu khám mới — bác sĩ bắt đầu khám bệnh nhân.
 
-    Yêu cầu ``reception_id`` và ``patient_id``. ``doctor_id`` và
-    ``doctor_name`` được CRUD layer tự điền từ user đang đăng nhập
+    Yêu cầu ``reception_id``. ``patient_id``, ``doctor_id`` và
+    ``doctor_name`` được endpoint tự điền từ reception / user đang đăng nhập
     nếu không truyền vào.
 
     Chẩn đoán (``diagnoses``) và kê đơn (``prescription_items``) có thể
@@ -192,14 +192,14 @@ class ExaminationCreate(BaseModel):
 
     Attributes:
         reception_id: ID lượt tiếp đón đã CHECKED_IN (bắt buộc).
-        patient_id: ID bệnh nhân (bắt buộc).
+        patient_id: ID bệnh nhân (tự điền từ reception nếu để trống).
         doctor_id: ID bác sĩ (tự điền từ current_user nếu để trống).
         diagnoses: Danh sách chẩn đoán tạo cùng lúc (mặc định rỗng).
         prescription_items: Danh sách kê đơn / CLS tạo cùng lúc (mặc định rỗng).
     """
 
     reception_id: int
-    patient_id:   int
+    patient_id:   Optional[int] = None
     doctor_id:    Optional[int] = None
 
     # Khung II — Thông tin vào

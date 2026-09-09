@@ -31,7 +31,7 @@ from app.db.session import get_db
 from app.core.deps import require_doctor
 from app.models.user import User
 from app.models.examination import Diagnosis, PrescriptionItem
-from app.models.enums import ExaminationStatus, VisitStatus
+from app.models.enums import ExaminationStatus, ReceptionStatus, VisitStatus
 from app.crud.examination import crud_examination
 from app.crud.reception import crud_reception
 from app.schemas.examination import (
@@ -215,13 +215,14 @@ async def create_examination(
         return existing
 
     # Bổ sung thông tin bác sĩ từ user đang đăng nhập
+    if not obj_in.patient_id:
+        obj_in = obj_in.model_copy(update={"patient_id": reception.patient_id})
     if not obj_in.doctor_id:
         obj_in = obj_in.model_copy(update={"doctor_id": current_user.id})
     if not obj_in.doctor_name:
         obj_in = obj_in.model_copy(
             update={"doctor_name": current_user.full_name or current_user.username}
         )
-
     try:
         exam = await crud_examination.create_examination(db, obj_in=obj_in)
     except IntegrityError:

@@ -43,32 +43,14 @@ class DoctorService:
     def resolve_clinic_room(
         clinic_room_param: Optional[str],
         user_clinic_room: Optional[str],
-    ) -> str:
+    ) -> Optional[str]:
         """
         Xác định phòng khám từ param hoặc user profile.
 
-        Ưu tiên param truyền vào; fallback về ``clinic_room`` của user đang đăng nhập.
-
-        Args:
-            clinic_room_param: Tên phòng từ query param (tuỳ chọn).
-            user_clinic_room: Phòng mặc định của user (từ profile).
-
-        Returns:
-            Tên phòng khám hợp lệ (chuỗi không rỗng).
-
-        Raises:
-            HTTPException 400: Không xác định được phòng từ cả hai nguồn.
+        Ưu tiên param truyền vào; fallback về ``clinic_room`` của user.
+        Trả ``None`` nếu cả hai đều trống — dành cho admin xem tất cả phòng.
         """
-        room = clinic_room_param or user_clinic_room
-        if not room:
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    "Chưa xác định phòng khám. "
-                    "Vui lòng chọn phòng hoặc cập nhật hồ sơ bác sĩ."
-                ),
-            )
-        return room
+        return clinic_room_param or user_clinic_room or None
 
     @staticmethod
     async def _get_reception_or_404(db: AsyncSession, reception_id: int) -> Reception:
