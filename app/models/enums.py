@@ -184,3 +184,84 @@ payment_type_col = sa.Enum(
     values_callable=lambda enum_class: [e.value for e in enum_class],
 )
 """SQLAlchemy column type cho :class:`PaymentType` — tham chiếu PostgreSQL TYPE ``payment_type``."""
+
+
+# ─── CLS Result ───────────────────────────────────────────────────────────────
+
+class ClsResultStatus(str, enum.Enum):
+    """Trạng thái kết quả CLS."""
+    PENDING    = "pending"    # Chờ thực hiện
+    IN_PROCESS = "in_process" # Đang xử lý
+    COMPLETED  = "completed"  # Đã có kết quả
+    CANCELLED  = "cancelled"  # Huỷ
+
+
+cls_result_status_type = sa.Enum(
+    ClsResultStatus,
+    name="cls_result_status",
+    native_enum=True,
+    create_type=False,
+    values_callable=lambda enum_class: [e.value for e in enum_class],
+)
+
+
+# ─── Bill / Payment ───────────────────────────────────────────────────────────
+
+class BillStatus(str, enum.Enum):
+    """Trạng thái hóa đơn viện phí."""
+    DRAFT    = "draft"    # Đang tạo
+    ISSUED   = "issued"   # Đã phát hành, chờ thanh toán
+    PAID     = "paid"     # Đã thanh toán
+    PARTIAL  = "partial"  # Thanh toán một phần
+    CANCELLED = "cancelled" # Huỷ hóa đơn
+    REFUNDED  = "refunded"  # Đã hoàn tiền
+
+
+class PaymentMethod(str, enum.Enum):
+    """Phương thức thanh toán."""
+    CASH     = "cash"     # Tiền mặt
+    TRANSFER = "transfer" # Chuyển khoản
+    CARD     = "card"     # Thẻ ngân hàng
+    MOMO     = "momo"     # Ví điện tử MoMo
+    VNPAY    = "vnpay"    # VNPay
+    ZALOPAY  = "zalopay"  # ZaloPay
+    BHYT     = "bhyt"     # BHYT chi trả trực tiếp
+    DEFER    = "defer"    # Công nợ / trả sau
+
+
+bill_status_type = sa.Enum(
+    BillStatus,
+    name="bill_status",
+    native_enum=True,
+    create_type=False,
+    values_callable=lambda enum_class: [e.value for e in enum_class],
+)
+
+payment_method_type = sa.Enum(
+    PaymentMethod,
+    name="payment_method",
+    native_enum=True,
+    create_type=False,
+    values_callable=lambda enum_class: [e.value for e in enum_class],
+)
+
+
+# ─── Appointment ──────────────────────────────────────────────────────────────
+
+class AppointmentStatus(str, enum.Enum):
+    """Trạng thái lịch hẹn."""
+    SCHEDULED  = "scheduled"  # Đã đặt, chờ xác nhận
+    CONFIRMED  = "confirmed"  # Đã xác nhận
+    ARRIVED    = "arrived"    # Bệnh nhân đã đến
+    COMPLETED  = "completed"  # Đã hoàn tất
+    CANCELLED  = "cancelled"  # Đã huỷ
+    NO_SHOW    = "no_show"    # Không đến
+
+
+appointment_status_type = sa.Enum(
+    AppointmentStatus,
+    name="appointment_status",
+    native_enum=True,
+    create_type=False,
+    values_callable=lambda enum_class: [e.value for e in enum_class],
+)

@@ -34,6 +34,7 @@ from app.models.examination import Diagnosis, PrescriptionItem
 from app.models.enums import ExaminationStatus, ReceptionStatus, VisitStatus
 from app.crud.examination import crud_examination
 from app.crud.reception import crud_reception
+from app.crud.catalog import crud_audit
 from app.schemas.examination import (
     ExaminationCreate, ExaminationUpdate, ExaminationResponse,
     ExaminationList, CostSummary,
@@ -232,6 +233,17 @@ async def create_examination(
         if not exam:
             raise HTTPException(status_code=500, detail="Lỗi tạo phiếu khám")
 
+    await crud_audit.log_change(
+        db,
+        user_id=current_user.id,
+        username=current_user.username,
+        action="CREATE",
+        table_name="examinations",
+        record_id=exam.id,
+        new_data={"reception_id": exam.reception_id, "patient_id": exam.patient_id, "status": exam.status.value},
+        description=f"Tạo phiếu khám cho reception #{exam.reception_id}",
+    )
+    await db.commit()
     return exam
 
 
@@ -359,7 +371,19 @@ async def update_examination(
     """
     exam = await _get_exam_or_404(db, examination_id)
     _assert_not_completed(exam)
-    return await crud_examination.update_examination(db, db_obj=exam, obj_in=obj_in)
+    updated = await crud_examination.update_examination(db, db_obj=exam, obj_in=obj_in)
+    await crud_audit.log_change(
+        db,
+        user_id=current_user.id,
+        username=current_user.username,
+        action="UPDATE",
+        table_name="examinations",
+        record_id=examination_id,
+        new_data=obj_in.model_dump(exclude_unset=True, exclude={"diagnoses", "prescription_items"}),
+        description=f"Cập nhật phiếu khám #{examination_id}",
+    )
+    await db.commit()
+    return updated
 
 
 # ── Workflow transitions ────────────────────────────────────────────────────────
@@ -393,7 +417,19 @@ async def save_examination(
     """
     exam = await _get_exam_or_404(db, examination_id)
     _assert_not_completed(exam)
-    return await crud_examination.save_examination(db, db_obj=exam)
+    saved = await crud_examination.save_examination(db, db_obj=exam)
+    await crud_audit.log_change(
+        db,
+        user_id=current_user.id,
+        username=current_user.username,
+        action="UPDATE",
+        table_name="examinations",
+        record_id=examination_id,
+        new_data={"status": "saved"},
+        description=f"Lưu phiếu khám #{examination_id}",
+    )
+    await db.commit()
+    return saved
 
 
 @router.post(
@@ -439,6 +475,17 @@ async def complete_examination(
         await crud_reception.complete_reception(db, reception=reception)
         await _broadcast_queue_update(reception.id, VisitStatus.DONE, reception.clinic_room)
 
+    await crud_audit.log_change(
+        db,
+        user_id=current_user.id,
+        username=current_user.username,
+        action="UPDATE",
+        table_name="examinations",
+        record_id=examination_id,
+        new_data={"status": "completed", "exam_end_at": str(completed.exam_end_at)},
+        description=f"Kết thúc phiếu khám #{examination_id}",
+    )
+    await db.commit()
     return completed
 
 
@@ -549,7 +596,19 @@ async def add_diagnosis(
     """
     exam = await _get_exam_or_404(db, examination_id)
     _assert_not_completed(exam)
-    return await crud_examination.add_diagnosis(db, examination_id=examination_id, obj_in=obj_in)
+    diag = await crud_examination.add_diagnosis(db, examination_id=examination_id, obj_in=obj_in)
+    await crud_audit.log_change(
+        db,
+        user_id=current_user.id,
+        username=current_user.username,
+        action="CREATE",
+        table_name="diagnoses",
+        record_id=diag.id,
+        new_data={"examination_id": examination_id, "icd_code": diag.icd_code, "icd_name": diag.icd_name},
+        description=f"Thêm chẩn đoán '{diag.icd_name}' vào phiếu #{examination_id}",
+    )
+    await db.commit()
+    return diag
 
 
 @router.delete(
@@ -580,8 +639,19 @@ async def delete_diagnosis(
     """
     exam = await _get_exam_or_404(db, examination_id)
     _assert_not_completed(exam)
-    await _assert_owns_diagnosis(db, examination_id, diagnosis_id)
+    diag = await _assert_owns_diagnosis(db, examination_id, diagnosis_id)
     await crud_examination.delete_diagnosis(db, diagnosis_id=diagnosis_id)
+    await crud_audit.log_change(
+        db,
+        user_id=current_user.id,
+        username=current_user.username,
+        action="DELETE",
+        table_name="diagnoses",
+        record_id=diagnosis_id,
+        old_data={"examination_id": examination_id, "icd_code": diag.icd_code, "icd_name": diag.icd_name},
+        description=f"Xoá chẩn đoán '{diag.icd_name}' khỏi phiếu #{examination_id}",
+    )
+    await db.commit()
 
 
 # ── Prescription items ─────────────────────────────────────────────────────────
@@ -618,9 +688,38 @@ async def add_item(
     """
     exam = await _get_exam_or_404(db, examination_id)
     _assert_not_completed(exam)
-    return await crud_examination.add_prescription_item(
+    item = await crud_examination.add_prescription_item(
         db, examination_id=examination_id, obj_in=obj_in
     )
+
+    # Tự động tạo ClsResult khi thêm chỉ định CLS
+    if obj_in.item_type == "cls":
+        from app.crud.clinical import crud_cls_result
+        await crud_cls_result.create_for_item_data(
+            db,
+            prescription_item_id=item.id,
+            examination_id=examination_id,
+            patient_id=exam.patient_id,
+            service_code=item.item_code,
+            service_name=item.item_name,
+        )
+
+    await crud_audit.log_change(
+        db,
+        user_id=current_user.id,
+        username=current_user.username,
+        action="CREATE",
+        table_name="prescription_items",
+        record_id=item.id,
+        new_data={
+            "examination_id": examination_id,
+            "item_type": item.item_type,
+            "item_name": item.item_name,
+        },
+        description=f"Kê {item.item_type} '{item.item_name}' vào phiếu #{examination_id}",
+    )
+    await db.commit()
+    return item
 
 
 @router.delete(
@@ -651,5 +750,16 @@ async def delete_item(
     """
     exam = await _get_exam_or_404(db, examination_id)
     _assert_not_completed(exam)
-    await _assert_owns_item(db, examination_id, item_id)
+    item = await _assert_owns_item(db, examination_id, item_id)
     await crud_examination.delete_prescription_item(db, item_id=item_id)
+    await crud_audit.log_change(
+        db,
+        user_id=current_user.id,
+        username=current_user.username,
+        action="DELETE",
+        table_name="prescription_items",
+        record_id=item_id,
+        old_data={"examination_id": examination_id, "item_type": item.item_type, "item_name": item.item_name},
+        description=f"Xoá {item.item_type} '{item.item_name}' khỏi phiếu #{examination_id}",
+    )
+    await db.commit()

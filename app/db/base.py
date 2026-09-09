@@ -14,3 +14,4 @@ Base = declarative_base()
 
 # Import all models here so Alembic can detect them
 from app.models import patient, queue_ticket, reception, user, examination, catalog  # noqa: F401, E402
+from app.models import clinical, billing, appointment  # noqa: F401, E402
