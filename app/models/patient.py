@@ -4,7 +4,7 @@ ORM model bệnh nhân — lưu đầy đủ thông tin hành chính theo chuẩ
 Một bệnh nhân có thể có nhiều lượt tiếp đón (:class:`Reception`)
 và nhiều số thứ tự (:class:`QueueTicket`) qua các lần khám khác nhau.
 """
-from sqlalchemy import Column, Integer, String, Date, Text, Boolean
+from sqlalchemy import Column, Integer, String, Date, Text, Boolean, Numeric
 from sqlalchemy.orm import relationship
 
 from app.db.base import Base
@@ -75,6 +75,12 @@ class Patient(Base, TimestampMixin):
 
     # Đối tượng chính sách (hộ nghèo, cận nghèo...)
     policy_type = Column(String(50), nullable=True, comment="Loại đối tượng chính sách")
+
+    # ── Chỉ số lâm sàng (BYT: bắt buộc với BN < 72 tháng tuổi) ────────
+    weight_kg = Column(
+        Numeric(5, 1), nullable=True,
+        comment="Cân nặng (kg) — bắt buộc kê đơn cho BN dưới 72 tháng tuổi",
+    )
 
     # Thông tin người thân / người đi cùng
     contact_name    = Column(String(100), nullable=True, comment="Họ tên người thân")

@@ -31,7 +31,7 @@ from app.db.session import get_db
 from app.core.deps import require_doctor
 from app.models.user import User
 from app.models.examination import Diagnosis, PrescriptionItem
-from app.models.enums import ExaminationStatus, ReceptionStatus, VisitStatus
+from app.models.enums import ExaminationStatus, ReceptionStatus, VisitStatus, LicenseStatus
 from app.crud.examination import crud_examination
 from app.crud.reception import crud_reception
 from app.crud.catalog import crud_audit
@@ -43,8 +43,40 @@ from app.schemas.examination import (
 )
 from app.services.websocket_manager import ws_manager
 
+# ── Prescription integration ──────────────────────────────────────────────────
+from app.crud.prescription import crud_prescription
+from app.crud.catalog import crud_audit  # noqa: F811 — re-import ok
+from app.schemas.prescription import PrescriptionCreate
+from app.services.prescription_validator import (
+    validate_prescription_prerequisites,
+    raise_if_invalid,
+    check_prescription_validity_warning,
+    is_under_72_months,
+)
+from app.services.national_prescription_service import push_prescription_to_national_system
+from app.core.config import settings
+
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/examinations", tags=["Examination - Phiếu khám"])
+
+
+async def _async_push_after_commit(prescription_id: int) -> None:
+    """
+    Background coroutine: đẩy đơn lên BYT sau khi DB transaction đã commit.
+
+    Dùng asyncio.create_task() để không block response trả về client.
+    """
+    from app.db.session import async_session_factory
+    async with async_session_factory() as bg_db:
+        try:
+            presc = await crud_prescription.get_full(bg_db, prescription_id)
+            if presc:
+                await push_prescription_to_national_system(bg_db, presc)
+                await bg_db.commit()
+        except Exception as exc:
+            logger.exception(
+                "Background push failed for prescription %d: %s", prescription_id, exc
+            )
 
 
 # ── Private helpers ────────────────────────────────────────────────────────────
@@ -485,6 +517,130 @@ async def complete_examination(
         new_data={"status": "completed", "exam_end_at": str(completed.exam_end_at)},
         description=f"Kết thúc phiếu khám #{examination_id}",
     )
+
+    # ── Tạo đơn thuốc điện tử BYT (nếu có kê đơn thuốc) ────────────────────
+    drug_items = [it for it in completed.prescription_items if it.item_type == "drug"]
+    existing_prescription = await crud_prescription.get_by_examination(db, examination_id)
+
+    if drug_items and not existing_prescription:
+        # Lấy thông tin BN để kiểm tra tuổi
+        from sqlalchemy import select as sa_select
+        from app.models.patient import Patient
+        patient_q = await db.execute(
+            sa_select(Patient).where(Patient.id == completed.patient_id)
+        )
+        patient = patient_q.scalar_one_or_none()
+
+        # Lấy mã liên thông bác sĩ
+        doctor_national_code = None
+        doctor_license_status = "active"
+        if current_user:
+            doctor_national_code  = getattr(current_user, "national_doctor_code", None)
+            raw_ls = getattr(current_user, "license_status", None)
+            doctor_license_status = raw_ls.value if hasattr(raw_ls, "value") else str(raw_ls or "active")
+
+        patient_dob   = getattr(patient, "date_of_birth", None) if patient else None
+        patient_phone = getattr(patient, "phone", None) if patient else None
+        patient_weight = getattr(patient, "weight_kg", None) if patient else None
+
+        # Kiểm tra TPCN
+        has_tpcn = False
+        if patient:
+            from sqlalchemy import select as _sel, and_ as _and
+            from app.models.catalog import Drug
+            tpcn_q = await db.execute(
+                _sel(Drug.drug_category)
+                .join(
+                    PrescriptionItem,
+                    _and(
+                        PrescriptionItem.item_code == Drug.drug_code,
+                        PrescriptionItem.item_type == "drug",
+                        PrescriptionItem.examination_id == examination_id,
+                    )
+                )
+                .where(Drug.drug_category == "functional_food")
+                .limit(1)
+            )
+            has_tpcn = tpcn_q.scalar_one_or_none() is not None
+
+        # Pre-classify để validate
+        from app.services.prescription_code import classify_prescription_type
+        from app.services.prescription_validator import is_under_72_months
+        from app.models.catalog import Drug as _Drug
+        cats_q = await db.execute(
+            _sel(_Drug.drug_category)
+            .join(
+                PrescriptionItem,
+                _and(
+                    PrescriptionItem.item_code == _Drug.drug_code,
+                    PrescriptionItem.item_type == "drug",
+                    PrescriptionItem.examination_id == examination_id,
+                )
+            )
+        )
+        drug_cats = [row[0].value for row in cats_q.all() if row[0]]
+        p_type = classify_prescription_type(drug_cats)
+
+        # Validate
+        errors = validate_prescription_prerequisites(
+            doctor_national_code   = doctor_national_code,
+            doctor_license_status  = doctor_license_status,
+            patient_phone          = patient_phone,
+            patient_date_of_birth  = patient_dob,
+            patient_weight_kg      = patient_weight,
+            guardian_name          = None,   # Bác sĩ điền qua PrescriptionUpdate sau
+            prescription_type      = p_type,
+            treatment_from         = None,
+            treatment_to           = None,
+            recipient_cccd         = None,
+            has_functional_food_items = has_tpcn,
+        )
+        raise_if_invalid(errors)
+
+        # Cảnh báo hiệu lực đơn
+        valid_tos = [it.valid_to for it in drug_items]
+        _warnings = check_prescription_validity_warning(valid_tos)
+        if _warnings:
+            logger.warning("Prescription validity warnings for exam %d: %s", examination_id, _warnings)
+
+        # Gender code mapping
+        gender_raw = getattr(patient, "gender", None) if patient else None
+        gender_code = {"male": 1, "female": 2}.get(str(gender_raw or ""), 3)
+
+        facility_code = getattr(settings, "national_facility_code", "") or ""
+        rx_data = PrescriptionCreate(
+            examination_id       = examination_id,
+            patient_id           = completed.patient_id,
+            doctor_id            = current_user.id,
+            is_inpatient         = False,  # Default ngoại trú; có thể override qua PATCH
+            patient_phone        = patient_phone,
+            patient_weight_kg    = patient_weight,
+            patient_gender_code  = gender_code,
+            doctor_name          = current_user.full_name,
+            doctor_national_code = doctor_national_code,
+        )
+
+        try:
+            new_prescription = await crud_prescription.create_for_examination(
+                db, rx_data, facility_code=facility_code
+            )
+            logger.info(
+                "Prescription %s created for examination %d",
+                new_prescription.prescription_code, examination_id,
+            )
+
+            # Push real-time (ngoại trú)
+            import asyncio
+            asyncio.create_task(
+                _async_push_after_commit(new_prescription.id)
+            )
+        except Exception as exc:
+            # Không để lỗi tạo đơn chặn việc complete phiếu khám
+            logger.error(
+                "Failed to create prescription for examination %d: %s",
+                examination_id, exc,
+            )
+
     await db.commit()
     return completed
 

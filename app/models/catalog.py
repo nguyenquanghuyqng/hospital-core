@@ -14,6 +14,7 @@ from sqlalchemy import (
 )
 from app.db.base import Base
 from app.models.base_model import TimestampMixin
+from app.models.enums import DrugCategory, drug_category_col
 
 
 # ─── Danh mục thuốc ──────────────────────────────────────────────────────────
@@ -72,6 +73,15 @@ class Drug(Base, TimestampMixin):
     is_active      = Column(Boolean, nullable=False, default=True,  server_default="true")
     is_bhyt        = Column(Boolean, nullable=False, default=False, server_default="false", comment="Thuộc DM BHYT")
     note           = Column(Text, nullable=True)
+
+    # ── Phân loại nhóm thuốc BYT (dùng xác định ký tự Z của mã đơn) ─────────
+    drug_category  = Column(
+        drug_category_col,
+        nullable=False,
+        default=DrugCategory.REGULAR,
+        server_default=DrugCategory.REGULAR.value,
+        comment="regular/narcotic/psychotropic/functional_food",
+    )
 
     __table_args__ = (
         Index("ix_drugs_drug_name", "drug_name"),

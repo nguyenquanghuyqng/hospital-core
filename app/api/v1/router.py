@@ -11,6 +11,7 @@ from fastapi import APIRouter
 from app.api.v1.endpoints import (
     queue, patients, reception, auth, doctor,
     examination, catalog, admin, clinical, billing, appointments, export,
+    prescription,
 )
 
 api_router = APIRouter(prefix="/api/v1")
@@ -28,3 +29,4 @@ api_router.include_router(billing.router)
 api_router.include_router(appointments.router)
 api_router.include_router(export.router)
 api_router.include_router(admin.router)
+api_router.include_router(prescription.router)

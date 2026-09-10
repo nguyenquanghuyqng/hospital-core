@@ -7,6 +7,7 @@ Role quyết định quyền truy cập vào các nhóm endpoint khác nhau.
 from sqlalchemy import Column, Integer, String, Boolean
 from app.db.base import Base
 from app.models.base_model import TimestampMixin
+from app.models.enums import LicenseStatus, license_status_col
 
 
 class User(Base, TimestampMixin):
@@ -36,6 +37,19 @@ class User(Base, TimestampMixin):
                              comment="doctor | nurse | receptionist | cashier | admin")
     clinic_room     = Column(String(50),  nullable=True,  comment="Phòng khám phụ trách")
     is_active       = Column(Boolean,     nullable=False, default=True, server_default="true")
+
+    # ── Mã liên thông quốc gia (BYT) ─────────────────────────────────────────
+    national_doctor_code = Column(
+        String(20), nullable=True, index=True,
+        comment="Mã liên thông bác sĩ do Sở Y tế cấp (5–20 ký tự)",
+    )
+    license_status = Column(
+        license_status_col,
+        nullable=False,
+        default=LicenseStatus.ACTIVE,
+        server_default=LicenseStatus.ACTIVE.value,
+        comment="Trạng thái hành nghề: active/suspended/revoked",
+    )
 
     def __repr__(self) -> str:
         """Trả về chuỗi đại diện ngắn gọn cho debugging."""

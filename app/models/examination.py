@@ -206,6 +206,13 @@ class PrescriptionItem(Base, TimestampMixin):
     id             = Column(Integer, primary_key=True, index=True)
     examination_id = Column(Integer, ForeignKey("examinations.id", ondelete="CASCADE"),
                             nullable=False, index=True)
+    prescription_id = Column(
+        Integer,
+        ForeignKey("prescriptions.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+        comment="FK tới prescriptions — gán khi tạo/đóng đơn",
+    )
 
     # Phân loại
     item_type = Column(String(10), nullable=False, server_default="drug",

@@ -38,6 +38,36 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 480  # 8 giờ
 
+    # ── Liên thông quốc gia (donthuocquocgia.vn) ─────────────────────────────
+    NATIONAL_FACILITY_CODE: str = ""
+    """Mã cơ sở 5 ký tự do Sở Y tế cấp — bắt buộc trước khi kê đơn BYT."""
+
+    NATIONAL_RX_API_URL: str = ""
+    """Base URL API hệ thống quốc gia (để trống = chế độ dry-run, không gửi thật)."""
+
+    NATIONAL_RX_API_KEY: str = ""
+    """API key do Sở Y tế cấp."""
+
+    NATIONAL_RX_TIMEOUT: int = 15
+    """Timeout (giây) khi gọi API BYT."""
+
+    # Convenience lowercase aliases cho services
+    @property
+    def national_facility_code(self) -> str:
+        return self.NATIONAL_FACILITY_CODE
+
+    @property
+    def national_rx_api_url(self) -> str:
+        return self.NATIONAL_RX_API_URL
+
+    @property
+    def national_rx_api_key(self) -> str:
+        return self.NATIONAL_RX_API_KEY
+
+    @property
+    def national_rx_timeout(self) -> int:
+        return self.NATIONAL_RX_TIMEOUT
+
     class Config:
         """Pydantic config: đọc từ file .env, phân biệt chữ hoa/thường."""
 

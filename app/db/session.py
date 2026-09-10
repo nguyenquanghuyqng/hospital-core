@@ -28,6 +28,9 @@ AsyncSessionLocal = async_sessionmaker(
     autoflush=False,
 )
 
+# Alias dùng cho background tasks (tạo session ngoài request lifecycle)
+async_session_factory = AsyncSessionLocal
+
 # ── Sync engine — dùng cho Alembic migrations ────────────────────────────────
 sync_engine = create_engine(
     settings.DATABASE_SYNC_URL,

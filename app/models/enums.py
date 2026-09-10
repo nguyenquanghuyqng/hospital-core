@@ -265,3 +265,107 @@ appointment_status_type = sa.Enum(
     create_type=False,
     values_callable=lambda enum_class: [e.value for e in enum_class],
 )
+
+
+# ─── National Prescription (BYT / donthuocquocgia.vn) ────────────────────────
+
+class LicenseStatus(str, enum.Enum):
+    """
+    Trạng thái hành nghề của bác sĩ liên quan đến mã liên thông.
+
+    Ảnh hưởng trực tiếp đến khả năng kê đơn:
+    - Chỉ ``ACTIVE`` mới được phép hoàn tất phiếu khám và đẩy đơn.
+    """
+
+    ACTIVE    = "active"    # Đang hành nghề — được kê đơn
+    SUSPENDED = "suspended" # Tạm dừng hành nghề — không được kê đơn
+    REVOKED   = "revoked"   # Bị thu hồi chứng chỉ — không được kê đơn
+
+
+license_status_col = sa.Enum(
+    LicenseStatus,
+    name="license_status",
+    native_enum=True,
+    create_type=False,
+    values_callable=lambda enum_class: [e.value for e in enum_class],
+)
+"""SQLAlchemy column type cho :class:`LicenseStatus` — PostgreSQL TYPE ``license_status``."""
+
+
+class DrugCategory(str, enum.Enum):
+    """
+    Phân loại nhóm thuốc — dùng để xác định ký tự phân loại Z của mã đơn.
+
+    - ``NARCOTIC``       → Z = 'N' (gây nghiện)
+    - ``PSYCHOTROPIC``   → Z = 'H' (hướng thần / tiền chất)
+    - ``REGULAR``        → Z = 'C' (đơn thường)
+    - ``FUNCTIONAL_FOOD``→ bị chặn hoàn toàn khỏi đơn thuốc chính thức
+    """
+
+    REGULAR        = "regular"        # Thuốc thường
+    NARCOTIC       = "narcotic"       # Thuốc gây nghiện — đơn N
+    PSYCHOTROPIC   = "psychotropic"   # Thuốc hướng thần / tiền chất — đơn H
+    FUNCTIONAL_FOOD = "functional_food"  # Thực phẩm chức năng — bị chặn
+
+
+drug_category_col = sa.Enum(
+    DrugCategory,
+    name="drug_category",
+    native_enum=True,
+    create_type=False,
+    values_callable=lambda enum_class: [e.value for e in enum_class],
+)
+"""SQLAlchemy column type cho :class:`DrugCategory` — PostgreSQL TYPE ``drug_category``."""
+
+
+class PrescriptionType(str, enum.Enum):
+    """
+    Loại đơn thuốc — xác định ký tự Z cuối mã đơn 14 ký tự.
+
+    Logic xác định tự động:
+    - Có bất kỳ thuốc ``NARCOTIC``     → N
+    - Có bất kỳ thuốc ``PSYCHOTROPIC`` (và không có NARCOTIC) → H
+    - Còn lại → C
+    """
+
+    N = "N"  # Gây nghiện
+    H = "H"  # Hướng thần / tiền chất
+    C = "C"  # Đơn thường
+
+
+prescription_type_col = sa.Enum(
+    PrescriptionType,
+    name="prescription_type",
+    native_enum=True,
+    create_type=False,
+    values_callable=lambda enum_class: [e.value for e in enum_class],
+)
+"""SQLAlchemy column type cho :class:`PrescriptionType` — PostgreSQL TYPE ``prescription_type``."""
+
+
+class PrescriptionPushStatus(str, enum.Enum):
+    """
+    Trạng thái đẩy đơn lên hệ thống quốc gia (donthuocquocgia.vn).
+
+    Vòng đời::
+
+        PENDING → SENDING → SUCCESS
+                          ↘ ERROR → (retry) → SENDING → ...
+        (admin cancel) → CANCELLED
+    """
+
+    PENDING   = "pending"   # Chờ gửi (mới tạo hoặc đang xếp hàng)
+    SENDING   = "sending"   # Đang gửi lên hệ thống quốc gia
+    SUCCESS   = "success"   # Đã gửi thành công
+    ERROR     = "error"     # Gửi thất bại — sẽ retry
+    CANCELLED = "cancelled" # Đã huỷ (admin cancel thủ công)
+
+
+prescription_push_status_col = sa.Enum(
+    PrescriptionPushStatus,
+    name="prescription_push_status",
+    native_enum=True,
+    create_type=False,
+    values_callable=lambda enum_class: [e.value for e in enum_class],
+)
+"""SQLAlchemy column type cho :class:`PrescriptionPushStatus` — PostgreSQL TYPE ``prescription_push_status``."""

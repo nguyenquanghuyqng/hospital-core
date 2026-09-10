@@ -52,6 +52,9 @@ class UserResponse(BaseModel):
     role:        str
     clinic_room: Optional[str] = None
     is_active:   bool
+    # Mã liên thông quốc gia
+    national_doctor_code: Optional[str] = None
+    license_status:       str = "active"
     model_config = {"from_attributes": True}
 
 
@@ -414,3 +417,111 @@ async def get_record_audit(
     return await crud_audit.get_by_record(
         db, table_name=table_name, record_id=record_id, limit=limit
     )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Quản lý mã liên thông quốc gia (BYT / donthuocquocgia.vn)
+# ══════════════════════════════════════════════════════════════════════════════
+
+class LicenseUpdateRequest(BaseModel):
+    """Gán hoặc cập nhật mã liên thông và trạng thái hành nghề của bác sĩ."""
+    national_doctor_code: Optional[str] = None
+    license_status: Optional[str] = None   # "active" | "suspended" | "revoked"
+
+
+@router.patch(
+    "/users/{user_id}/license",
+    response_model=UserResponse,
+    summary="Gán / cập nhật mã liên thông bác sĩ",
+)
+async def update_doctor_license(
+    user_id: int,
+    body: LicenseUpdateRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    """
+    Admin gán mã liên thông quốc gia và cập nhật trạng thái hành nghề cho bác sĩ.
+
+    - ``national_doctor_code``: Mã do Sở Y tế cấp (None = giữ nguyên).
+    - ``license_status``: ``active`` | ``suspended`` | ``revoked``.
+
+    Raises:
+        HTTPException 404: Không tìm thấy tài khoản.
+        HTTPException 400: license_status không hợp lệ.
+    """
+    from app.models.enums import LicenseStatus
+
+    valid_statuses = {s.value for s in LicenseStatus}
+
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="Không tìm thấy tài khoản")
+
+    if body.national_doctor_code is not None:
+        user.national_doctor_code = body.national_doctor_code.strip() or None
+
+    if body.license_status is not None:
+        if body.license_status not in valid_statuses:
+            raise HTTPException(
+                status_code=400,
+                detail=f"license_status không hợp lệ. Cho phép: {', '.join(sorted(valid_statuses))}",
+            )
+        user.license_status = LicenseStatus(body.license_status)
+
+    db.add(user)
+    await db.flush()
+    await db.commit()
+    await db.refresh(user)
+
+    await crud_audit.log_change(
+        db,
+        user_id=current_user.id,
+        username=current_user.username,
+        action="UPDATE",
+        table_name="users",
+        record_id=user_id,
+        new_data=body.model_dump(exclude_none=True),
+        description=f"Cập nhật mã liên thông BS #{user_id}: {body.national_doctor_code}",
+    )
+    await db.commit()
+    return user
+
+
+@router.get(
+    "/users/doctors/license-status",
+    response_model=List[UserResponse],
+    summary="Danh sách bác sĩ và trạng thái mã liên thông",
+)
+async def list_doctor_license_status(
+    license_status: Optional[str] = Query(None, description="Lọc theo trạng thái: active/suspended/revoked"),
+    has_code: Optional[bool] = Query(None, description="True=đã có mã, False=chưa có mã"),
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    """
+    Xem danh sách bác sĩ với thông tin mã liên thông và trạng thái hành nghề.
+
+    Dùng cho màn hình admin quản lý vòng đời bác sĩ:
+    - Thêm mã khi có bác sĩ mới.
+    - Tạm dừng khi bác sĩ nghỉ phép.
+    - Thu hồi khi bác sĩ nghỉ việc/chuyển công tác.
+    """
+    from sqlalchemy import or_, and_
+
+    query = select(User).where(User.role == "doctor")
+    conds = []
+
+    if license_status:
+        conds.append(User.license_status == license_status)
+    if has_code is True:
+        conds.append(User.national_doctor_code != None)  # noqa: E711
+    elif has_code is False:
+        conds.append(User.national_doctor_code == None)  # noqa: E711
+
+    if conds:
+        query = query.where(and_(*conds))
+
+    result = await db.execute(query.order_by(User.full_name))
+    return list(result.scalars().all())
