@@ -106,6 +106,7 @@ class PrescriptionResponse(BaseModel):
     examination_id:   int
     patient_id:       int
     doctor_id:        Optional[int] = None
+    supersedes_id:    Optional[int] = None
 
     # Mã đơn
     prescription_code:  Optional[str] = None
@@ -139,6 +140,7 @@ class PrescriptionResponse(BaseModel):
     retry_count:        int
     retry_at:           Optional[datetime] = None
     error_log:          Optional[str] = None
+    validity_warnings:  List[str] = []
 
     # Bác sĩ snapshot
     doctor_name:          Optional[str] = None

@@ -187,6 +187,13 @@ async def retry_prescription(
         raise HTTPException(
             status_code=409, detail="Đơn đã bị huỷ, không thể retry. Tạo đơn mới nếu cần."
         )
+    if obj.push_status not in (PrescriptionPushStatus.ERROR, PrescriptionPushStatus.PENDING):
+        raise HTTPException(status_code=409, detail="Đơn đang được xử lý, chưa thể retry.")
+    if obj.push_status == PrescriptionPushStatus.ERROR and obj.retry_count >= 5:
+        raise HTTPException(
+            status_code=409,
+            detail="Đơn đã vượt quá 5 lần retry tự động. Hãy tạo đơn thay thế sau khi kiểm tra lỗi.",
+        )
 
     # Đặt lại trạng thái pending để background task pick up
     obj.push_status = PrescriptionPushStatus.PENDING
@@ -205,6 +212,46 @@ async def retry_prescription(
     )
 
     return obj
+
+
+@router.post(
+    "/{prescription_id}/replacement",
+    response_model=PrescriptionResponse,
+    summary="Tạo đơn thay thế cho đơn đã gửi thành công",
+)
+async def create_replacement_prescription(
+    prescription_id: int,
+    obj_in: PrescriptionUpdate,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_doctor),
+):
+    """Create a new code and preserve the old successful prescription."""
+    source = await _get_or_404(db, prescription_id)
+    if source.push_status != PrescriptionPushStatus.SUCCESS:
+        raise HTTPException(
+            status_code=409,
+            detail="Chỉ đơn đã gửi thành công mới được tạo đơn thay thế.",
+        )
+
+    replacement = await crud_prescription.create_replacement(db, source)
+    if obj_in.model_dump(exclude_unset=True):
+        replacement = await crud_prescription.update(db, replacement, obj_in)
+
+    await crud_audit.log_change(
+        db,
+        user_id=current_user.id,
+        username=current_user.username,
+        action="CREATE",
+        table_name="prescriptions",
+        record_id=replacement.id,
+        new_data={"supersedes_id": source.id, "prescription_code": replacement.prescription_code},
+        description=f"Tạo đơn thay thế cho đơn #{source.id}",
+    )
+    await db.commit()
+    replacement = await crud_prescription.get_full(db, replacement.id)
+    background_tasks.add_task(_bg_push, replacement.id)
+    return replacement
 
 
 async def _bg_push(prescription_id: int):

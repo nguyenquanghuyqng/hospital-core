@@ -62,6 +62,164 @@ GITHUB/
 
 **Stack Frontend:** React 18 · TypeScript strict · Vite · Zustand · react-hook-form + zod · react-hot-toast
 
+### Sơ đồ kiến trúc runtime
+
+```mermaid
+flowchart LR
+  subgraph Clients[Client applications]
+    React[React + TypeScript\nVite dev server]
+    Legacy[Legacy Jinja2 / static pages\nKiosk · Display · Reception]
+  end
+
+  subgraph Backend[Hospital Core - FastAPI]
+    Main[app.main\nCORS · logging · errors]
+    REST[API v1 routers\nAuth · Queue · Patients · Reception\nDoctor · Examination · Billing · Admin]
+    WS[Queue WebSocket endpoint\n/api/v1/queue/ws/{room}]
+    Services[Services\nJWT security · business services\nWebSocket connection manager]
+    CRUD[CRUD layer]
+    ORM[SQLAlchemy models + schemas]
+  end
+
+  DB[(PostgreSQL)]
+  Migrations[Alembic migrations]
+
+  React -->|HTTP JSON /api/v1| Main
+  React -->|WebSocket /api/v1/queue/ws/{room}| WS
+  Legacy -->|HTTP JSON| Main
+  Legacy -->|WebSocket| WS
+
+  Main --> REST
+  REST --> Services
+  REST --> CRUD
+  WS --> Services
+  CRUD --> ORM
+  Services --> CRUD
+  ORM -->|Async SQLAlchemy sessions| DB
+  Migrations -->|Schema changes| DB
+```
+
+**Request flow:** React or a legacy page sends REST requests through `app.main` to the v1 routers. Routers use dependencies for authentication and database sessions, then call CRUD/services that read or write PostgreSQL through SQLAlchemy. Queue mutations additionally publish events through the WebSocket manager to the `display`, `kiosk`, and `reception` rooms. Alembic uses the synchronous database engine for schema migrations.
+
+### Sơ đồ Entity-Relationship
+
+```mermaid
+erDiagram
+  USER ||--o{ EXAMINATION : examines
+  USER ||--o{ PRESCRIPTION : prescribes
+  USER ||--o{ BILL : cashier
+  USER ||--o{ PAYMENT : records
+
+  PATIENT ||--o{ QUEUE_TICKET : receives
+  PATIENT ||--o{ RECEPTION : registers
+  PATIENT ||--o{ EXAMINATION : has
+  PATIENT ||--o{ PRESCRIPTION : owns
+  PATIENT ||--o{ CLS_RESULT : owns
+  PATIENT ||--o{ BILL : billed
+
+  QUEUE_TICKET ||--o| RECEPTION : assigned_to
+  RECEPTION ||--o| EXAMINATION : becomes
+  RECEPTION ||--o{ BILL : billed_for
+
+  EXAMINATION ||--o{ DIAGNOSIS : contains
+  EXAMINATION ||--o{ PRESCRIPTION_ITEM : orders
+  EXAMINATION ||--o| PRESCRIPTION : generates
+  EXAMINATION ||--o{ CLS_RESULT : includes
+  EXAMINATION ||--o| BILL : produces
+
+  PRESCRIPTION ||--o{ PRESCRIPTION_ITEM : groups
+  PRESCRIPTION_ITEM ||--o| CLS_RESULT : produces
+  PRESCRIPTION_ITEM ||--o{ BILL_ITEM : charged_as
+  CLS_RESULT ||--o{ CLS_RESULT_VALUE : measures
+
+  BILL ||--o{ BILL_ITEM : contains
+  BILL ||--o{ PAYMENT : settled_by
+
+  USER {
+    int id PK
+    string username UK
+    string role
+  }
+  PATIENT {
+    int id PK
+    string patient_code UK
+    string cccd UK
+    string full_name
+  }
+  QUEUE_TICKET {
+    int id PK
+    int patient_id FK
+    string ticket_number
+    string status
+  }
+  RECEPTION {
+    int id PK
+    int patient_id FK
+    int queue_ticket_id FK UK
+    string status
+    string visit_status
+  }
+  EXAMINATION {
+    int id PK
+    int reception_id FK UK
+    int patient_id FK
+    int doctor_id FK
+    string status
+  }
+  DIAGNOSIS {
+    int id PK
+    int examination_id FK
+    string icd_code
+  }
+  PRESCRIPTION {
+    int id PK
+    int examination_id FK UK
+    int patient_id FK
+    int doctor_id FK
+    string prescription_code UK
+  }
+  PRESCRIPTION_ITEM {
+    int id PK
+    int examination_id FK
+    int prescription_id FK
+    string item_type
+    string item_name
+  }
+  CLS_RESULT {
+    int id PK
+    int prescription_item_id FK UK
+    int examination_id FK
+    int patient_id FK
+    string status
+  }
+  CLS_RESULT_VALUE {
+    int id PK
+    int cls_result_id FK
+    string indicator_name
+  }
+  BILL {
+    int id PK
+    int examination_id FK UK
+    int patient_id FK
+    int cashier_id FK
+    string bill_number UK
+    string status
+  }
+  BILL_ITEM {
+    int id PK
+    int bill_id FK
+    int prescription_item_id FK
+    decimal total_amount
+  }
+  PAYMENT {
+    int id PK
+    int bill_id FK
+    int cashier_id FK
+    decimal amount
+  }
+```
+
+This ERD covers the main patient-to-payment workflow. `drugs`, `cls_services`, `icd10`, `system_config`, `audit_logs`, and `appointments` are additional tables; the catalog/config tables are primarily lookup data, while `audit_logs` stores flexible `table_name` and `record_id` references rather than database-enforced foreign keys.
+
 ---
 
 ## Yêu cầu hệ thống

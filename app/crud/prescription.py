@@ -15,7 +15,7 @@ from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from typing import List, Optional
 
-from sqlalchemy import select, func, and_, case
+from sqlalchemy import select, func, and_, case, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -114,6 +114,17 @@ class CRUDPrescription:
         )
         db.add(obj)
         await db.flush()
+
+        # Link the items already entered on the examination to this official
+        # prescription so the outbound payload contains the prescribed drugs.
+        await db.execute(
+            update(PrescriptionItem)
+            .where(
+                PrescriptionItem.examination_id == data.examination_id,
+                PrescriptionItem.prescription_id.is_(None),
+            )
+            .values(prescription_id=obj.id)
+        )
         await db.refresh(obj)
         return obj
 
@@ -122,9 +133,68 @@ class CRUDPrescription:
     ) -> Optional[Prescription]:
         """Lấy đơn theo examination_id."""
         result = await db.execute(
-            select(Prescription).where(Prescription.examination_id == examination_id)
+            select(Prescription)
+            .options(selectinload(Prescription.prescription_items))
+            .where(Prescription.examination_id == examination_id)
+            .order_by(Prescription.created_at.desc())
         )
-        return result.scalar_one_or_none()
+        return result.scalars().first()
+
+    async def create_replacement(
+        self, db: AsyncSession, source: Prescription
+    ) -> Prescription:
+        """Clone a successfully sent prescription with a new code."""
+        code = await generate_prescription_code(
+            db, source.facility_code or "", source.prescription_type.value
+        )
+        replacement = Prescription(
+            examination_id=source.examination_id,
+            patient_id=source.patient_id,
+            doctor_id=source.doctor_id,
+            supersedes_id=source.id,
+            prescription_code=code,
+            facility_code=source.facility_code,
+            prescription_type=source.prescription_type,
+            push_status=PrescriptionPushStatus.PENDING,
+            is_inpatient=source.is_inpatient,
+            treatment_from=source.treatment_from,
+            treatment_to=source.treatment_to,
+            patient_phone=source.patient_phone,
+            patient_weight_kg=source.patient_weight_kg,
+            patient_gender_code=source.patient_gender_code,
+            guardian_name=source.guardian_name,
+            recipient_cccd=source.recipient_cccd,
+            recipient_name=source.recipient_name,
+            doctor_name=source.doctor_name,
+            doctor_national_code=source.doctor_national_code,
+        )
+        db.add(replacement)
+        await db.flush()
+
+        for source_item in source.prescription_items or []:
+            db.add(PrescriptionItem(
+                examination_id=source_item.examination_id,
+                prescription_id=replacement.id,
+                item_type=source_item.item_type,
+                item_code=source_item.item_code,
+                item_name=source_item.item_name,
+                unit=source_item.unit,
+                quantity=source_item.quantity,
+                unit_price=source_item.unit_price,
+                usage_instruction=source_item.usage_instruction,
+                valid_from=source_item.valid_from,
+                valid_to=source_item.valid_to,
+                payment_type=source_item.payment_type,
+                total_amount=source_item.total_amount,
+                bhyt_amount=source_item.bhyt_amount,
+                patient_amount=source_item.patient_amount,
+                room_name=source_item.room_name,
+                doctor_name=source_item.doctor_name,
+                sort_order=source_item.sort_order,
+            ))
+        await db.flush()
+        await db.refresh(replacement)
+        return replacement
 
     async def get_full(
         self, db: AsyncSession, prescription_id: int

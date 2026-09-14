@@ -15,6 +15,8 @@ import logging
 import os
 import time
 import traceback
+import asyncio
+from contextlib import suppress
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
@@ -25,6 +27,8 @@ from fastapi.templating import Jinja2Templates
 
 from app.core.config import settings
 from app.api.v1.router import api_router
+from app.db.session import get_db
+from app.services.national_prescription_service import run_retry_task
 
 logging.basicConfig(
     level=logging.DEBUG if settings.DEBUG else logging.INFO,
@@ -49,7 +53,11 @@ async def lifespan(app: FastAPI):
         Điểm giữa ``yield`` là thời gian app đang phục vụ request.
     """
     logger.info(f"🏥  {settings.APP_NAME} v{settings.APP_VERSION} starting…")
+    retry_task = asyncio.create_task(run_retry_task(get_db))
     yield
+    retry_task.cancel()
+    with suppress(asyncio.CancelledError):
+        await retry_task
     logger.info("🏥  Application shutting down")
 
 

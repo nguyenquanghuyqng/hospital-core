@@ -66,8 +66,12 @@ async def generate_prescription_code(
     Raises:
         RuntimeError: Không thể sinh mã duy nhất sau :data:`_MAX_ATTEMPTS` lần thử.
     """
-    # Đảm bảo facility_code đúng 5 ký tự (pad/truncate)
-    fc = (facility_code or "XXXXX")[:5].upper().ljust(5, "0")
+    fc = (facility_code or "").strip().upper()
+    if len(fc) != 5 or not fc.isalnum():
+        raise ValueError(
+            "Mã liên thông cơ sở phải gồm đúng 5 ký tự chữ hoặc số "
+            "trước khi tạo đơn thuốc."
+        )
 
     for attempt in range(_MAX_ATTEMPTS):
         suffix = _random_suffix()

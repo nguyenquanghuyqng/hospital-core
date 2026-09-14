@@ -73,7 +73,7 @@ class Prescription(Base, TimestampMixin):
     # ── Liên kết ──────────────────────────────────────────────────────────────
     examination_id = Column(
         Integer, ForeignKey("examinations.id", ondelete="CASCADE"),
-        nullable=False, unique=True, index=True,
+        nullable=False, index=True,
     )
     patient_id = Column(
         Integer, ForeignKey("patients.id", ondelete="CASCADE"),
@@ -82,6 +82,12 @@ class Prescription(Base, TimestampMixin):
     doctor_id = Column(
         Integer, ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True, index=True,
+    )
+
+    supersedes_id = Column(
+        Integer, ForeignKey("prescriptions.id", ondelete="SET NULL"),
+        nullable=True, index=True,
+        comment="Đơn cũ được thay thế khi điều chỉnh sau khi đã gửi",
     )
 
     # ── Mã đơn 14 ký tự ───────────────────────────────────────────────────────
@@ -148,6 +154,7 @@ class Prescription(Base, TimestampMixin):
     examination        = relationship("Examination",        foreign_keys=[examination_id], lazy="select")
     patient            = relationship("Patient",            foreign_keys=[patient_id],    lazy="select")
     doctor             = relationship("User",               foreign_keys=[doctor_id],     lazy="select")
+    supersedes         = relationship("Prescription", remote_side=[id], lazy="select")
     prescription_items = relationship(
         "PrescriptionItem",
         primaryjoin="Prescription.id == foreign(PrescriptionItem.prescription_id)",
@@ -160,3 +167,16 @@ class Prescription(Base, TimestampMixin):
             f"<Prescription id={self.id} code={self.prescription_code!r} "
             f"type={self.prescription_type} status={self.push_status}>"
         )
+
+    @property
+    def validity_warnings(self) -> list[str]:
+        """Warnings exposed to clients when an item expires within five days."""
+        today = date.today()
+        warnings: list[str] = []
+        for item in self.prescription_items or []:
+            if item.valid_to and 0 <= (item.valid_to - today).days <= 5:
+                warnings.append(
+                    f"Đơn thuốc có dòng '{item.item_name}' hết hiệu lực "
+                    f"ngày {item.valid_to.strftime('%d/%m/%Y')}."
+                )
+        return warnings

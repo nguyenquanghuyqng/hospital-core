@@ -521,6 +521,7 @@ async def complete_examination(
     # ── Tạo đơn thuốc điện tử BYT (nếu có kê đơn thuốc) ────────────────────
     drug_items = [it for it in completed.prescription_items if it.item_type == "drug"]
     existing_prescription = await crud_prescription.get_by_examination(db, examination_id)
+    prescription_id_to_push: int | None = None
 
     if drug_items and not existing_prescription:
         # Lấy thông tin BN để kiểm tra tuổi
@@ -581,6 +582,20 @@ async def complete_examination(
         drug_cats = [row[0].value for row in cats_q.all() if row[0]]
         p_type = classify_prescription_type(drug_cats)
 
+        # Reuse registration data for the national prescription snapshot. Item
+        # validity dates provide the treatment period for N/H prescriptions.
+        guardian_name = getattr(patient, "contact_name", None) if patient else None
+        recipient_name = guardian_name
+        recipient_cccd = getattr(patient, "contact_cccd", None) if patient else None
+        treatment_from = min(
+            (item.valid_from for item in drug_items if item.valid_from),
+            default=None,
+        )
+        treatment_to = max(
+            (item.valid_to for item in drug_items if item.valid_to),
+            default=None,
+        )
+
         # Validate
         errors = validate_prescription_prerequisites(
             doctor_national_code   = doctor_national_code,
@@ -588,11 +603,11 @@ async def complete_examination(
             patient_phone          = patient_phone,
             patient_date_of_birth  = patient_dob,
             patient_weight_kg      = patient_weight,
-            guardian_name          = None,   # Bác sĩ điền qua PrescriptionUpdate sau
+            guardian_name          = guardian_name,
             prescription_type      = p_type,
-            treatment_from         = None,
-            treatment_to           = None,
-            recipient_cccd         = None,
+            treatment_from         = treatment_from,
+            treatment_to           = treatment_to,
+            recipient_cccd         = recipient_cccd,
             has_functional_food_items = has_tpcn,
         )
         raise_if_invalid(errors)
@@ -612,10 +627,15 @@ async def complete_examination(
             examination_id       = examination_id,
             patient_id           = completed.patient_id,
             doctor_id            = current_user.id,
-            is_inpatient         = False,  # Default ngoại trú; có thể override qua PATCH
+            is_inpatient         = str(getattr(completed.disposition, "value", completed.disposition)) in {"inpatient", "inpatient_ward"},
             patient_phone        = patient_phone,
             patient_weight_kg    = patient_weight,
             patient_gender_code  = gender_code,
+            guardian_name        = guardian_name,
+            treatment_from      = treatment_from,
+            treatment_to        = treatment_to,
+            recipient_cccd      = recipient_cccd,
+            recipient_name      = recipient_name,
             doctor_name          = current_user.full_name,
             doctor_national_code = doctor_national_code,
         )
@@ -629,11 +649,7 @@ async def complete_examination(
                 new_prescription.prescription_code, examination_id,
             )
 
-            # Push real-time (ngoại trú)
-            import asyncio
-            asyncio.create_task(
-                _async_push_after_commit(new_prescription.id)
-            )
+            prescription_id_to_push = new_prescription.id
         except Exception as exc:
             # Không để lỗi tạo đơn chặn việc complete phiếu khám
             logger.error(
@@ -642,6 +658,11 @@ async def complete_examination(
             )
 
     await db.commit()
+    if prescription_id_to_push is not None:
+        # The prescription must be visible in a committed transaction before
+        # the independent background session loads and pushes it.
+        import asyncio
+        asyncio.create_task(_async_push_after_commit(prescription_id_to_push))
     return completed
 
 

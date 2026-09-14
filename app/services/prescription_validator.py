@@ -171,7 +171,7 @@ def raise_if_invalid(errors: list[str]) -> None:
 
 def check_prescription_validity_warning(items_valid_to: list[Optional[date]]) -> list[str]:
     """
-    Kiểm tra hiệu lực đơn thuốc — cảnh báo (không chặn) nếu > 5 ngày.
+    Kiểm tra hiệu lực đơn thuốc — cảnh báo (không chặn) nếu hết hạn trong 5 ngày.
 
     Args:
         items_valid_to: Danh sách ``valid_to`` của các PrescriptionItem.
@@ -184,10 +184,10 @@ def check_prescription_validity_warning(items_valid_to: list[Optional[date]]) ->
     max_days = 5
 
     for vt in items_valid_to:
-        if vt and (vt - today).days > max_days:
+        if vt and 0 <= (vt - today).days <= max_days:
             warnings.append(
-                f"Đơn thuốc có hiệu lực đến {vt.strftime('%d/%m/%Y')} "
-                f"(vượt quá {max_days} ngày theo quy định)."
+                f"Đơn thuốc hết hiệu lực ngày {vt.strftime('%d/%m/%Y')} "
+                f"(trong vòng {max_days} ngày)."
             )
             break  # Cảnh báo 1 lần là đủ
 

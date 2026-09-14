@@ -229,6 +229,7 @@ async def run_retry_task(db_factory) -> None:
                         logger.info("Retry task: %d prescriptions to retry.", len(pending))
                     for presc in pending:
                         await push_prescription_to_national_system(db, presc)
+                    await db.commit()
             except Exception as exc:
                 logger.exception("Retry task loop error: %s", exc)
     finally:
