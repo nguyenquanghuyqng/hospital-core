@@ -22,7 +22,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.reception import Reception
+from app.models.patient import Patient
 from app.models.enums import ReceptionStatus, VisitStatus
+from sqlalchemy import or_
 from app.schemas.doctor import QueueStatsResponse, TransferRequest, VisitStatusUpdate
 from app.services.websocket_manager import ws_manager
 
@@ -85,11 +87,13 @@ class DoctorService:
         *,
         clinic_room: Optional[str],
         visit_date: date,
+        q: Optional[str] = None,
     ) -> List[Reception]:
         """
         Lấy danh sách bệnh nhân đang CHECKED_IN trong ngày.
 
         Nếu ``clinic_room`` là ``None`` → trả về tất cả phòng (dành cho admin).
+        Thêm tham số ``q`` để tìm kiếm trong các trường bệnh nhân (tên, mã BN, CCCD, phone,...).
         """
         query = (
             select(Reception)
@@ -101,6 +105,22 @@ class DoctorService:
         )
         if clinic_room:
             query = query.where(Reception.clinic_room == clinic_room)
+
+        # Search across patient fields when q provided
+        if q and q.strip():
+            kw = f"%{q.strip()}%"
+            query = (
+                query.join(Patient)
+                .where(
+                    or_(
+                        Patient.full_name.ilike(kw),
+                        Patient.patient_code.ilike(kw),
+                        Patient.cccd.ilike(kw),
+                        Patient.phone.ilike(kw),
+                        Patient.address.ilike(kw),
+                    )
+                )
+            )
 
         query = query.order_by(
             Reception.priority.desc(),

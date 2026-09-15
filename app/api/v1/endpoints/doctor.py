@@ -48,6 +48,7 @@ async def get_doctor_queue(
         None, description="Phòng khám; mặc định phòng của bác sĩ đăng nhập"
     ),
     visit_date: Optional[date] = Query(None, description="Ngày khám, mặc định hôm nay"),
+    q: Optional[str] = Query(None, description="Từ khoá tìm kiếm trên thông tin bệnh nhân"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_doctor),
 ):
@@ -65,7 +66,7 @@ async def get_doctor_queue(
     """
     room = doctor_service.resolve_clinic_room(clinic_room, current_user.clinic_room)
     target_date = visit_date or date.today()
-    return await doctor_service.get_queue(db, clinic_room=room, visit_date=target_date)
+    return await doctor_service.get_queue(db, clinic_room=room, visit_date=target_date, q=q)
 
 
 # ── Thống kê nhanh ────────────────────────────────────────────────────────────

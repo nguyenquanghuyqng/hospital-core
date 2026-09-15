@@ -221,6 +221,7 @@ async def list_receptions(
     visit_date:    Optional[date] = Query(None, description="Ngày khám, mặc định hôm nay"),
     status_filter: Optional[str]  = Query(None, alias="status", description="Lọc trạng thái"),
     clinic_room:   Optional[str]  = Query(None, description="Lọc theo phòng khám"),
+    q:             Optional[str]  = Query(None, alias="q", description="Từ khoá tìm kiếm trên thông tin bệnh nhân"),
     page:          int            = Query(1, ge=1),
     page_size:     int            = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
@@ -257,10 +258,10 @@ async def list_receptions(
 
     items = await crud_reception.get_by_date(
         db, visit_date=target_date, status=status_enum,
-        clinic_room=clinic_room, skip=skip, limit=page_size,
+        clinic_room=clinic_room, q=q, skip=skip, limit=page_size,
     )
     total = await crud_reception.count_by_date(
-        db, visit_date=target_date, status=status_enum, clinic_room=clinic_room,
+        db, visit_date=target_date, status=status_enum, clinic_room=clinic_room, q=q,
     )
 
     return PaginatedResponse(

@@ -139,6 +139,7 @@ class CRUDReception(CRUDBase[Reception]):
         visit_date: date,
         status: Optional[ReceptionStatus] = None,
         clinic_room: Optional[str] = None,
+        q: Optional[str] = None,
         skip: int = 0,
         limit: int = 50,
     ) -> List[Reception]:
@@ -148,17 +149,23 @@ class CRUDReception(CRUDBase[Reception]):
         Kết quả được sắp xếp ưu tiên cao trước, sau đó theo ``visit_number``
         tăng dần để phản ánh đúng thứ tự khám.
 
+        Hỗ trợ tham số tìm kiếm ``q`` — tìm kiếm LIKE trên các trường liên quan tới
+        bệnh nhân (tên, mã bệnh nhân, CCCD, điện thoại, địa chỉ).
+
         Args:
             db: Async database session.
             visit_date: Ngày khám cần truy vấn.
             status: Lọc theo trạng thái tiếp đón (tuỳ chọn).
             clinic_room: Lọc theo phòng khám (tuỳ chọn).
+            q: Từ khoá tìm kiếm (LIKE) trên các trường bệnh nhân.
             skip: Offset phân trang.
             limit: Số bản ghi tối đa.
 
         Returns:
             Danh sách :class:`~app.models.reception.Reception` với ``patient`` đã load.
         """
+        from sqlalchemy import or_
+
         query = (
             select(Reception)
             .options(selectinload(Reception.patient))
@@ -168,6 +175,26 @@ class CRUDReception(CRUDBase[Reception]):
             query = query.where(Reception.status == status)
         if clinic_room:
             query = query.where(Reception.clinic_room == clinic_room)
+
+        # Nếu có từ khoá tìm kiếm, join bảng patient và áp dụng điều kiện OR (ILIKE)
+        if q and q.strip():
+            kw = f"%{q.strip()}%"
+            query = (
+                query.join(Patient)
+                .where(
+                    or_(
+                        Patient.full_name.ilike(kw),
+                        Patient.patient_code.ilike(kw),
+                        Patient.cccd.ilike(kw),
+                        Patient.phone.ilike(kw),
+                        Patient.address.ilike(kw),
+                        Patient.address_province_name.ilike(kw),
+                        Patient.address_district_name.ilike(kw),
+                        Patient.address_ward_name.ilike(kw),
+                    )
+                )
+            )
+
         query = (
             query
             .order_by(Reception.priority.desc(), Reception.visit_number.asc(), Reception.id.asc())
@@ -184,9 +211,13 @@ class CRUDReception(CRUDBase[Reception]):
         visit_date: date,
         status: Optional[ReceptionStatus] = None,
         clinic_room: Optional[str] = None,
+        q: Optional[str] = None,
     ) -> int:
         """
         Đếm số lượt tiếp đón theo ngày, tuỳ chọn lọc theo trạng thái và phòng.
+
+        Hỗ trợ tham số tìm kiếm ``q`` để đếm các bản ghi khớp với điều kiện tìm kiếm
+        áp dụng trên các trường bệnh nhân.
 
         Dùng kết hợp với :meth:`get_by_date` để tính ``total_pages`` phân trang.
 
@@ -195,10 +226,13 @@ class CRUDReception(CRUDBase[Reception]):
             visit_date: Ngày khám cần đếm.
             status: Lọc theo trạng thái (tuỳ chọn).
             clinic_room: Lọc theo phòng khám (tuỳ chọn).
+            q: Từ khoá tìm kiếm (LIKE) trên các trường bệnh nhân.
 
         Returns:
             Tổng số bản ghi phù hợp.
         """
+        from sqlalchemy import or_
+
         query = select(func.count()).select_from(Reception).where(
             Reception.visit_date == visit_date
         )
@@ -206,6 +240,26 @@ class CRUDReception(CRUDBase[Reception]):
             query = query.where(Reception.status == status)
         if clinic_room:
             query = query.where(Reception.clinic_room == clinic_room)
+
+        if q and q.strip():
+            kw = f"%{q.strip()}%"
+            # Join patient and apply OR filters on patient fields
+            query = (
+                query.join(Patient)
+                .where(
+                    or_(
+                        Patient.full_name.ilike(kw),
+                        Patient.patient_code.ilike(kw),
+                        Patient.cccd.ilike(kw),
+                        Patient.phone.ilike(kw),
+                        Patient.address.ilike(kw),
+                        Patient.address_province_name.ilike(kw),
+                        Patient.address_district_name.ilike(kw),
+                        Patient.address_ward_name.ilike(kw),
+                    )
+                )
+            )
+
         result = await db.execute(query)
         return result.scalar_one()
 

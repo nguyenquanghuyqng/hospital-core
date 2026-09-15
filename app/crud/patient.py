@@ -6,6 +6,7 @@ và thao tác tạo/cập nhật hồ sơ bệnh nhân.
 """
 from datetime import date
 from typing import List, Optional
+import re
 from sqlalchemy import select, or_, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,16 +17,20 @@ from app.schemas.patient import PatientCreate, PatientUpdate
 
 def _generate_patient_code(year: int, seq: int) -> str:
     """
-    Sinh mã bệnh nhân theo định dạng ``BNYYYYnnnn``.
+    Sinh mã bệnh nhân theo định dạng 8 ký tự: ``YYnnnnnn``.
+
+    Hai ký tự đầu là 2 chữ số cuối của năm (ví dụ 26 cho năm 2026),
+    6 ký tự còn lại là số thứ tự trong năm, zero-padded 6 chữ số.
 
     Args:
         year: Năm hiện tại (4 chữ số, VD: 2026).
-        seq: Số thứ tự trong năm (padding thành 4 chữ số).
+        seq: Số thứ tự trong năm (padding thành 6 chữ số).
 
     Returns:
-        Mã bệnh nhân dạng chuỗi, VD: ``"BN20260001"``.
+        Mã bệnh nhân dạng chuỗi 8 ký tự, VD: ``"26000001"``.
     """
-    return f"BN{year}{seq:04d}"
+    # Format: 2-digit year (YY) + 6-digit zero-padded sequence
+    return f"{year % 100:02d}{seq:06d}"
 
 
 class CRUDPatient(CRUDBase[Patient]):
@@ -39,6 +44,10 @@ class CRUDPatient(CRUDBase[Patient]):
     # ── Tra cứu ─────────────────────────────────────────────────────────────
 
     async def get_by_cccd(self, db: AsyncSession, cccd: str) -> Optional[Patient]:
+        # Normalize CCCD: remove non-digit characters to allow lookups with spaces/dashes
+        if cccd is None:
+            return None
+        normalized = re.sub(r"\D", "", cccd)
         """
         Tìm bệnh nhân theo số CCCD/CMND.
 
@@ -52,7 +61,7 @@ class CRUDPatient(CRUDBase[Patient]):
             :class:`~app.models.patient.Patient` nếu tìm thấy, ``None`` nếu không.
         """
         result = await db.execute(
-            select(Patient).where(Patient.cccd == cccd)
+            select(Patient).where(Patient.cccd == normalized)
         )
         return result.scalar_one_or_none()
 
@@ -62,7 +71,7 @@ class CRUDPatient(CRUDBase[Patient]):
 
         Args:
             db: Async database session.
-            patient_code: Mã bệnh nhân dạng ``BNYYYYnnnn``.
+            patient_code: Mã bệnh nhân dạng 8 ký tự ``YYnnnnnn`` (ví dụ ``26000001``).
 
         Returns:
             :class:`~app.models.patient.Patient` nếu tìm thấy, ``None`` nếu không.
@@ -141,32 +150,40 @@ class CRUDPatient(CRUDBase[Patient]):
 
     async def _next_patient_code(self, db: AsyncSession) -> str:
         """
-        Sinh mã bệnh nhân tiếp theo trong năm hiện tại.
+        Sinh mã bệnh nhân tiếp theo trong năm hiện tại theo định dạng ``YYnnnnnn``.
 
-        Truy vấn mã BN lớn nhất của năm hiện tại, cộng thêm 1 vào sequence.
-        Format: ``BNYYYYnnnn`` — đảm bảo không trùng lặp trong cùng năm.
+        Logic:
+        - Tìm mã bệnh nhân lớn nhất bắt đầu bằng 2 chữ số cuối của năm hiện tại (YY)
+          và tăng sequence lên 1.
+        - Trả về mã mới ở dạng 8 ký tự (YY + 6 chữ số sequence zero-padded).
 
         Args:
             db: Async database session.
 
         Returns:
-            Mã bệnh nhân mới chưa tồn tại trong database, VD: ``"BN20260042"``.
+            Mã bệnh nhân mới chưa tồn tại trong database, VD: ``"26000001"``.
         """
         year = date.today().year
-        prefix = f"BN{year}"
+        year_short = f"{year % 100:02d}"
+
+        # Tìm patient_code lớn nhất bắt đầu bằng year_short (ví dụ '26%')
         result = await db.execute(
             select(func.max(Patient.patient_code)).where(
-                Patient.patient_code.like(f"{prefix}%")
+                Patient.patient_code.like(f"{year_short}%")
             )
         )
         last_code: Optional[str] = result.scalar_one_or_none()
+
         if last_code:
+            # last_code expected format: YY + 6-digit sequence
             try:
-                seq = int(last_code[len(prefix):]) + 1
-            except ValueError:
+                seq_part = last_code[len(year_short):]
+                seq = int(seq_part) + 1
+            except (ValueError, IndexError):
                 seq = 1
         else:
             seq = 1
+
         return _generate_patient_code(year, seq)
 
     # ── Tạo / Cập nhật ──────────────────────────────────────────────────────
@@ -178,7 +195,7 @@ class CRUDPatient(CRUDBase[Patient]):
         Tạo bệnh nhân mới với sinh mã tự động và đồng bộ năm sinh.
 
         Thực hiện hai bước bổ sung so với :meth:`~CRUDBase.create`:
-        1. Tự sinh ``patient_code`` dạng ``BNYYYYnnnn`` nếu chưa có.
+        1. Tự sinh ``patient_code`` dạng 8 ký tự ``YYnnnnnn`` nếu chưa có (ví dụ ``26000001``).
         2. Tự điền ``birth_year`` từ ``date_of_birth`` nếu thiếu.
 
         Args:
@@ -189,6 +206,10 @@ class CRUDPatient(CRUDBase[Patient]):
             :class:`~app.models.patient.Patient` vừa được tạo.
         """
         data = obj_in.model_dump()
+
+        # Normalize CCCD stored value
+        if data.get("cccd"):
+            data["cccd"] = re.sub(r"\D", "", str(data.get("cccd")))
 
         # Tự sinh mã BN
         if not data.get("patient_code"):
@@ -257,6 +278,81 @@ class CRUDPatient(CRUDBase[Patient]):
                 return existing, False
         patient = await self.create_patient(db, obj_in=obj_in)
         return patient, True
+
+
+    async def get_by_identifier(self, db: AsyncSession, identifier: str) -> Optional[Patient]:
+        """
+        Tra cứu thông minh: luôn dò cả hai cột CCCD và patient_code.
+
+        Giải pháp:
+        - Chuẩn hoá input (loại bỏ ký tự không phải số để so sánh CCCD).
+        - Thử lookup theo CCCD (nếu có chữ số nào đó) — trả ngay khi tìm thấy.
+        - Sau đó thử lookup theo patient_code (chuyển uppercase) — trả khi tìm thấy.
+        - Nếu không tìm thấy ở cả hai, trả None.
+
+        Mục tiêu: bất kể người dùng nhập CCCD hay mã BN ở các định dạng khác nhau,
+        endpoint vẫn tìm được hồ sơ nếu tồn tại ở một trong hai cột.
+        """
+        if not identifier:
+            return None
+        ident = str(identifier).strip()
+        # Normalize digits for CCCD lookup
+        digits = re.sub(r"\D", "", ident)
+
+        # 1) Try CCCD lookup if any digits present
+        if digits:
+            patient = await self.get_by_cccd(db, digits)
+            if patient:
+                return patient
+
+        # 2) Try patient_code lookup (normalize to uppercase)
+        code = ident.upper()
+        patient = await self.get_by_code(db, code)
+        if patient:
+            return patient
+
+        # 3) If input contains only digits or common variants, build candidate patient_code forms
+        candidates = []
+        if digits:
+            # Direct BN + digits
+            candidates.append(f'BN{digits}')
+
+            # If digits look like YYYY + seq, produce BNYYYY + seq(zfilled to 6)
+            if len(digits) >= 5:
+                year_part = digits[:4]
+                seq_part = digits[4:]
+                if year_part.isdigit():
+                    seq_padded = seq_part.zfill(6)
+                    candidates.append(f'BN{year_part}{seq_padded}')
+                    # Also add the short-year format YY + seq (new format)
+                    candidates.append(f'{year_part[-2:]}{seq_padded}')
+
+            # Also try current year + padded seq (both BNYYYY... legacy and new YY... formats)
+            cur_year = date.today().year
+            candidates.append(f'BN{cur_year}{digits.zfill(6)}')
+            candidates.append(f'{cur_year % 100:02d}{digits.zfill(6)}')
+
+        # Deduplicate and try lookup by patient_code for each candidate
+        seen = set()
+        for cand in candidates:
+            cand_up = cand.upper()
+            if cand_up in seen:
+                continue
+            seen.add(cand_up)
+            patient = await self.get_by_code(db, cand_up)
+            if patient:
+                return patient
+
+        # 4) As a last effort, if original input had BN prefix with non-digits, try stripping non-digits
+        if ident.upper().startswith('BN'):
+            alt = re.sub(r"\D", "", ident)
+            if alt:
+                alt_code = ('BN' + alt) if not alt.upper().startswith('BN') else alt.upper()
+                patient = await self.get_by_code(db, alt_code)
+                if patient:
+                    return patient
+
+        return None
 
 
 crud_patient = CRUDPatient(Patient)

@@ -136,9 +136,10 @@ async def get_patient_by_cccd(
     Raises:
         HTTPException 404: Chưa có bệnh nhân với CCCD này trong hệ thống.
     """
-    patient = await crud_patient.get_by_cccd(db, cccd)
+    # Support smart lookup: accept either CCCD or patient_code
+    patient = await crud_patient.get_by_identifier(db, cccd)
     if not patient:
-        raise HTTPException(status_code=404, detail="Chưa có bệnh nhân với CCCD này")
+        raise HTTPException(status_code=404, detail="Chưa có bệnh nhân tương ứng")
     return patient
 
 
