@@ -29,6 +29,7 @@ from app.schemas.queue_ticket import (
 )
 from app.schemas.common import PaginatedResponse, MessageResponse
 from app.services.websocket_manager import ws_manager
+from app.models.queue_ticket import QueueStatus
 
 router = APIRouter(prefix="/queue", tags=["Queue - Hệ thống số thứ tự"])
 logger = logging.getLogger(__name__)
@@ -303,6 +304,16 @@ async def update_ticket_status(
         raise HTTPException(status_code=404, detail="Không tìm thấy số thứ tự")
 
     ticket = await crud_queue_ticket.update_status(db, ticket=ticket, obj_in=obj_in)
+
+    # If the ticket was marked as CALLING, broadcast a calling event so display/kiosk
+    # receive the ticket_number + counter_number and can show it per-counter.
+    if ticket.status == QueueStatus.CALLING:
+        await ws_manager.broadcast_calling(
+            ticket_number=ticket.ticket_number,
+            counter_number=ticket.counter_number,
+            patient_name=None,
+        )
+
     summary = await crud_queue_ticket.get_summary(db)
     await ws_manager.broadcast_queue_update(summary)
     return ticket
