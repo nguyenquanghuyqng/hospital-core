@@ -338,7 +338,7 @@ async def update_reception(
 @router.post(
     "/{reception_id}/check-in",
     response_model=ReceptionResponse,
-    summary="Check-in bệnh nhân (PENDING → CHECKED_IN)",
+    summary="Check-in bệnh nhân (PENDING/CHECKED_IN → CHECKED_IN)",
 )
 async def check_in(
     reception_id: int,
@@ -346,10 +346,10 @@ async def check_in(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Nhân viên tiếp đón xác nhận bệnh nhân đã có mặt (PENDING → CHECKED_IN).
+    Xác nhận bệnh nhân đã có mặt trong danh sách chờ khám.
 
-    Ghi ``checked_in_at`` và tuỳ chọn gán số thứ tự, tên nhân viên, ghi chú.
-    Broadcast cập nhật stats tới quầy tiếp đón qua WebSocket.
+    Với flow mới, bệnh nhân được đăng ký đã lập tức ở trạng thái CHECKED_IN,
+    nên endpoint này hoạt động như thao tác idempotent nếu lượt tiếp đón đã có STT.
 
     Args:
         reception_id: ID lượt tiếp đón cần check-in.
@@ -361,16 +361,16 @@ async def check_in(
 
     Raises:
         HTTPException 404: Không tìm thấy lượt tiếp đón hoặc số thứ tự.
-        HTTPException 400: Lượt tiếp đón không ở trạng thái PENDING.
+        HTTPException 400: Lượt tiếp đón không ở trạng thái PENDING hoặc CHECKED_IN.
     """
     reception = await crud_reception.get(db, reception_id)
     if not reception:
         raise HTTPException(status_code=404, detail="Không tìm thấy thông tin tiếp đón")
 
-    if reception.status != ReceptionStatus.PENDING:
+    if reception.status not in (ReceptionStatus.PENDING, ReceptionStatus.CHECKED_IN):
         raise HTTPException(
             status_code=400,
-            detail=f"Chỉ có thể check-in khi trạng thái PENDING (hiện tại: {reception.status.value})",
+            detail=f"Không thể check-in khi trạng thái hiện tại là {reception.status.value}",
         )
 
     if obj_in.queue_ticket_id:

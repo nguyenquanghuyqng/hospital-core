@@ -49,19 +49,26 @@ class CRUDReception(CRUDBase[Reception]):
 
         Returns:
             :class:`~app.models.reception.Reception` vừa tạo với
-            ``status=PENDING``.
+            ``status=CHECKED_IN`` để bệnh nhân xuất hiện ngay trong danh sách chờ khám.
         """
         data = obj_in.model_dump(exclude={"patient_id", "patient_data"})
         data["patient_id"] = patient_id
         data["visit_date"] = date.today()
-        data["status"]     = ReceptionStatus.PENDING
+        data["status"] = ReceptionStatus.CHECKED_IN
+        data["checked_in_at"] = datetime.now(timezone.utc)
+
+        # Tự điền phòng khám nếu không có để đảm bảo luôn có số khám
+        clinic_room = (data.get("clinic_room") or "").strip()
+        if not clinic_room:
+            clinic_room = "Phòng khám"
+        data["clinic_room"] = clinic_room
 
         # Tự điền giờ đăng ký nếu không có
         if not data.get("visit_time"):
             data["visit_time"] = datetime.now().strftime("%H:%M")
 
         # Tự sinh visit_number theo phòng khám trong ngày
-        if not data.get("visit_number") and data.get("clinic_room"):
+        if data.get("visit_number") is None:
             data["visit_number"] = await self._next_visit_number(
                 db,
                 visit_date=data["visit_date"],
@@ -263,19 +270,23 @@ class CRUDReception(CRUDBase[Reception]):
         """
         Chuyển lượt tiếp đón từ PENDING → CHECKED_IN.
 
-        Ghi ``checked_in_at`` = thời điểm hiện tại.
-        Tuỳ chọn gán số thứ tự, nhân viên tiếp đón, và ghi chú nội bộ.
+        Nếu lượt tiếp đón đã ở trạng thái CHECKED_IN thì coi như thao tác idempotent
+        và chỉ cập nhật các trường tùy chọn (số thứ tự, nhân viên tiếp đón, ghi chú).
 
         Args:
             db: Async database session.
-            reception: Instance :class:`~app.models.reception.Reception` đang ở PENDING.
+            reception: Instance :class:`~app.models.reception.Reception` đang ở PENDING hoặc CHECKED_IN.
             obj_in: Schema :class:`~app.schemas.reception.ReceptionCheckIn`.
 
         Returns:
             :class:`~app.models.reception.Reception` đã cập nhật sang CHECKED_IN.
         """
-        reception.status       = ReceptionStatus.CHECKED_IN
-        reception.checked_in_at = datetime.now(timezone.utc)
+        if reception.status == ReceptionStatus.CHECKED_IN:
+            if reception.checked_in_at is None:
+                reception.checked_in_at = datetime.now(timezone.utc)
+        else:
+            reception.status = ReceptionStatus.CHECKED_IN
+            reception.checked_in_at = datetime.now(timezone.utc)
 
         if obj_in.queue_ticket_id is not None:
             reception.queue_ticket_id = obj_in.queue_ticket_id
