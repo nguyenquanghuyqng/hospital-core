@@ -32,11 +32,11 @@ class DiagnosisBase(BaseModel):
         sort_order: Thứ tự hiển thị trong phiếu (bắt đầu từ 0).
     """
 
-    icd_code:   Optional[str] = Field(None, max_length=20, description="Mã ICD-10")
-    icd_name:   str           = Field(..., max_length=300, description="Tên bệnh/chẩn đoán")
-    is_primary: bool          = Field(False, description="True = chẩn đoán chính")
-    note:       Optional[str] = None
-    sort_order: int           = Field(0, ge=0)
+    icd_code:   Optional[str] = Field(None, max_length=20, description="Mã ICD-10", json_schema_extra={"example": "J18.9"})
+    icd_name:   str           = Field(..., max_length=300, description="Tên bệnh/chẩn đoán", json_schema_extra={"example": "Viêm phổi không xác định nguyên nhân"})
+    is_primary: bool          = Field(False, description="True = chẩn đoán chính", json_schema_extra={"example": True})
+    note:       Optional[str] = Field(None, json_schema_extra={"example": "Khởi phát từ 3 ngày trước"})
+    sort_order: int           = Field(0, ge=0, json_schema_extra={"example": 1})
 
 
 class DiagnosisCreate(DiagnosisBase):
@@ -104,26 +104,26 @@ class PrescriptionItemBase(BaseModel):
     """
 
     item_type:  str = Field("drug", pattern="^(drug|cls)$",
-                             description="drug = thuốc, cls = cận lâm sàng")
-    item_code:  Optional[str]     = Field(None, max_length=50)
-    item_name:  str               = Field(..., max_length=300)
-    unit:       Optional[str]     = Field(None, max_length=30)
-    quantity:   Decimal           = Field(Decimal("1"), gt=0)
-    unit_price: Optional[Decimal] = None
+                             description="drug = thuốc, cls = cận lâm sàng", json_schema_extra={"example": "drug"})
+    item_code:  Optional[str]     = Field(None, max_length=50, json_schema_extra={"example": "PAR500"})
+    item_name:  str               = Field(..., max_length=300, json_schema_extra={"example": "Paracetamol 500mg"})
+    unit:       Optional[str]     = Field(None, max_length=30, json_schema_extra={"example": "viên"})
+    quantity:   Decimal           = Field(Decimal("1"), gt=0, json_schema_extra={"example": "10"})
+    unit_price: Optional[Decimal] = Field(None, json_schema_extra={"example": "2500"})
 
-    usage_instruction: Optional[str] = None
-    valid_from: Optional[date]       = None
-    valid_to:   Optional[date]       = None
+    usage_instruction: Optional[str] = Field(None, json_schema_extra={"example": "Uống 1 viên sau ăn sáng và tối"})
+    valid_from: Optional[date]       = Field(None, json_schema_extra={"example": "2025-02-10"})
+    valid_to:   Optional[date]       = Field(None, json_schema_extra={"example": "2025-02-17"})
 
-    payment_type: PaymentType = Field(PaymentType.BHYT)
+    payment_type: PaymentType = Field(PaymentType.BHYT, json_schema_extra={"example": "bhyt"})
 
-    total_amount:   Optional[Decimal] = None
-    bhyt_amount:    Optional[Decimal] = None
-    patient_amount: Optional[Decimal] = None
+    total_amount:   Optional[Decimal] = Field(None, json_schema_extra={"example": "25000"})
+    bhyt_amount:    Optional[Decimal] = Field(None, json_schema_extra={"example": "20000"})
+    patient_amount: Optional[Decimal] = Field(None, json_schema_extra={"example": "5000"})
 
-    room_name:   Optional[str] = Field(None, max_length=50)
-    doctor_name: Optional[str] = Field(None, max_length=100)
-    sort_order:  int           = Field(0, ge=0)
+    room_name:   Optional[str] = Field(None, max_length=50, json_schema_extra={"example": "Phòng thuốc"})
+    doctor_name: Optional[str] = Field(None, max_length=100, json_schema_extra={"example": "BS. Trần Minh Đức"})
+    sort_order:  int           = Field(0, ge=0, json_schema_extra={"example": 1})
 
 
 class PrescriptionItemCreate(PrescriptionItemBase):
@@ -198,41 +198,41 @@ class ExaminationCreate(BaseModel):
         prescription_items: Danh sách kê đơn / CLS tạo cùng lúc (mặc định rỗng).
     """
 
-    reception_id: int
-    patient_id:   Optional[int] = None
-    doctor_id:    Optional[int] = None
+    reception_id: int = Field(..., json_schema_extra={"example": 42})
+    patient_id:   Optional[int] = Field(None, json_schema_extra={"example": 101})
+    doctor_id:    Optional[int] = Field(None, json_schema_extra={"example": 8})
 
     # Khung II — Thông tin vào
-    exam_date:     Optional[date]     = None
-    exam_start_at: Optional[datetime] = None
-    subject_type:  Optional[str]      = Field(None, max_length=10)
-    subject_name:  Optional[str]      = Field(None, max_length=100)
-    insurance_number:     Optional[str]  = Field(None, max_length=20)
-    insurance_valid_from: Optional[date] = None
-    insurance_valid_to:   Optional[date] = None
-    referral_from_type: Optional[str]  = Field(None, max_length=100)
-    referral_from_name: Optional[str]  = Field(None, max_length=200)
-    referral_diagnosis: Optional[str]  = None
-    clinical_symptoms:  Optional[str]  = None
+    exam_date:     Optional[date]     = Field(None, json_schema_extra={"example": "2025-02-10"})
+    exam_start_at: Optional[datetime] = Field(None, json_schema_extra={"example": "2025-02-10T08:40:00"})
+    subject_type:  Optional[str]      = Field(None, max_length=10, json_schema_extra={"example": "1"})
+    subject_name:  Optional[str]      = Field(None, max_length=100, json_schema_extra={"example": "Bảo hiểm y tế"})
+    insurance_number:     Optional[str]  = Field(None, max_length=20, json_schema_extra={"example": "KH12345678"})
+    insurance_valid_from: Optional[date] = Field(None, json_schema_extra={"example": "2025-01-01"})
+    insurance_valid_to:   Optional[date] = Field(None, json_schema_extra={"example": "2025-12-31"})
+    referral_from_type: Optional[str]  = Field(None, max_length=100, json_schema_extra={"example": "Tuyến dưới"})
+    referral_from_name: Optional[str]  = Field(None, max_length=200, json_schema_extra={"example": "Trạm Y tế xã Long Hòa"})
+    referral_diagnosis: Optional[str]  = Field(None, json_schema_extra={"example": "Sốt, ho 3 ngày"})
+    clinical_symptoms:  Optional[str]  = Field(None, json_schema_extra={"example": "Sốt 38.5°C, ho khan, mệt mỏi"})
 
     # Khung III — Thông tin khám
-    doctor_name:   Optional[str] = Field(None, max_length=100)
-    nurse_name:    Optional[str] = Field(None, max_length=100)
-    complications: Optional[str] = None
-    disposition:   Optional[DispositionType] = None
-    revisit_days:         Optional[int] = None
-    revisit_result:       Optional[str] = Field(None, max_length=50)
-    transfer_to_facility: Optional[str] = Field(None, max_length=200)
-    transfer_reason:      Optional[str] = None
-    admit_ward:           Optional[str] = Field(None, max_length=100)
-    admit_priority: bool = False
-    is_near_poor:   bool = False
-    is_poor:        bool = False
-    flag_priority:  bool = False
+    doctor_name:   Optional[str] = Field(None, max_length=100, json_schema_extra={"example": "BS. Trần Minh Đức"})
+    nurse_name:    Optional[str] = Field(None, max_length=100, json_schema_extra={"example": "ĐD. Nguyễn Thị Hoa"})
+    complications: Optional[str] = Field(None, json_schema_extra={"example": "Không có biến chứng"})
+    disposition:   Optional[DispositionType] = Field(None, json_schema_extra={"example": "treat"})
+    revisit_days:         Optional[int] = Field(None, json_schema_extra={"example": 7})
+    revisit_result:       Optional[str] = Field(None, max_length=50, json_schema_extra={"example": "Tái khám sau 1 tuần"})
+    transfer_to_facility: Optional[str] = Field(None, max_length=200, json_schema_extra={"example": "Bệnh viện đa khoa tỉnh"})
+    transfer_reason:      Optional[str] = Field(None, json_schema_extra={"example": "Cần chẩn đoán chuyên khoa"})
+    admit_ward:           Optional[str] = Field(None, max_length=100, json_schema_extra={"example": "Khoa Nội"})
+    admit_priority: bool = Field(False, json_schema_extra={"example": False})
+    is_near_poor:   bool = Field(False, json_schema_extra={"example": False})
+    is_poor:        bool = Field(False, json_schema_extra={"example": False})
+    flag_priority:  bool = Field(False, json_schema_extra={"example": False})
 
     # Chẩn đoán và kê đơn tạo cùng lúc
-    diagnoses:          List[DiagnosisCreate]        = []
-    prescription_items: List[PrescriptionItemCreate] = []
+    diagnoses:          List[DiagnosisCreate]        = Field(default_factory=list, json_schema_extra={"example": [{"icd_code": "J18.9", "icd_name": "Viêm phổi không xác định nguyên nhân", "is_primary": True}]})
+    prescription_items: List[PrescriptionItemCreate] = Field(default_factory=list, json_schema_extra={"example": [{"item_type": "drug", "item_name": "Paracetamol 500mg", "quantity": "10", "unit": "viên"}]})
 
 
 class ExaminationUpdate(BaseModel):
@@ -328,7 +328,28 @@ class ExaminationResponse(BaseModel):
 
     created_at: datetime
     updated_at: datetime
-    model_config = {"from_attributes": True}
+    model_config = {
+        "from_attributes": True,
+        "json_schema_extra": {
+            "example": {
+                "id": 12,
+                "reception_id": 42,
+                "patient_id": 101,
+                "doctor_id": 8,
+                "status": "draft",
+                "exam_date": "2025-02-10",
+                "subject_type": "1",
+                "subject_name": "Bảo hiểm y tế",
+                "insurance_number": "KH12345678",
+                "doctor_name": "BS. Trần Minh Đức",
+                "clinical_symptoms": "Sốt 38.5°C, ho khan, mệt mỏi",
+                "diagnoses": [{"id": 1, "examination_id": 12, "icd_code": "J18.9", "icd_name": "Viêm phổi không xác định nguyên nhân", "is_primary": True}],
+                "prescription_items": [{"id": 1, "examination_id": 12, "item_type": "drug", "item_name": "Paracetamol 500mg", "quantity": "10", "unit": "viên"}],
+                "created_at": "2025-02-10T08:45:00",
+                "updated_at": "2025-02-10T09:00:00",
+            }
+        },
+    }
 
 
 class ExaminationList(BaseModel):

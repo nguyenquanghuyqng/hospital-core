@@ -39,59 +39,59 @@ class ReceptionCreate(BaseModel):
     """
 
     # ── Bệnh nhân ─────────────────────────────────────────────────────────────
-    patient_id:   Optional[int]           = Field(None, description="ID bệnh nhân đã có")
-    patient_data: Optional[PatientCreate] = Field(None, description="Tạo bệnh nhân mới đồng thời")
+    patient_id:   Optional[int]           = Field(None, description="ID bệnh nhân đã có", json_schema_extra={"example": 101})
+    patient_data: Optional[PatientCreate] = Field(None, description="Tạo bệnh nhân mới đồng thời", json_schema_extra={"example": {"full_name": "Nguyễn Văn An", "cccd": "012345678901", "gender": "male", "phone": "0909123456"}})
 
     # ── Ngày giờ đăng ký ──────────────────────────────────────────────────────
-    visit_time:  Optional[str] = Field(None, max_length=8, description="Giờ đăng ký (HH:MM)")
+    visit_time:  Optional[str] = Field(None, max_length=8, description="Giờ đăng ký (HH:MM)", json_schema_extra={"example": "08:30"})
 
     # ── Phòng khám & số khám ──────────────────────────────────────────────────
-    clinic_room:  Optional[str] = Field(None, max_length=50, description="Phòng khám")
-    visit_number: Optional[int] = Field(None, description="Số khám")
+    clinic_room:  Optional[str] = Field(None, max_length=50, description="Phòng khám", json_schema_extra={"example": "Phòng khám tổng quát"})
+    visit_number: Optional[int] = Field(None, description="Số khám", json_schema_extra={"example": 12})
 
     # ── Cờ loại đăng ký ───────────────────────────────────────────────────────
-    is_appointment: bool = Field(False, description="Hẹn khám")
-    is_online:      bool = Field(False, description="Đăng ký online")
-    is_referral:    bool = Field(False, description="Chuyển tuyến")
+    is_appointment: bool = Field(False, description="Hẹn khám", json_schema_extra={"example": False})
+    is_online:      bool = Field(False, description="Đăng ký online", json_schema_extra={"example": False})
+    is_referral:    bool = Field(False, description="Chuyển tuyến", json_schema_extra={"example": False})
 
     # ── Đối tượng BHYT ────────────────────────────────────────────────────────
-    subject_type: Optional[str] = Field(None, max_length=10,  description="Mã đối tượng (1=BHYT, 2=DV...)")
-    subject_name: Optional[str] = Field(None, max_length=100, description="Tên đối tượng")
+    subject_type: Optional[str] = Field(None, max_length=10,  description="Mã đối tượng (1=BHYT, 2=DV...)", json_schema_extra={"example": "1"})
+    subject_name: Optional[str] = Field(None, max_length=100, description="Tên đối tượng", json_schema_extra={"example": "Bảo hiểm y tế"})
 
     # ── Thẻ BHYT ──────────────────────────────────────────────────────────────
-    insurance_number:     Optional[str]  = Field(None, max_length=20, description="Số thẻ BHYT")
-    insurance_valid_from: Optional[date] = Field(None, description="Từ ngày hạn thẻ BHYT")
-    insurance_valid_to:   Optional[date] = Field(None, description="Đến ngày hạn thẻ BHYT")
+    insurance_number:     Optional[str]  = Field(None, max_length=20, description="Số thẻ BHYT", json_schema_extra={"example": "KH12345678"})
+    insurance_valid_from: Optional[date] = Field(None, description="Từ ngày hạn thẻ BHYT", json_schema_extra={"example": "2025-01-01"})
+    insurance_valid_to:   Optional[date] = Field(None, description="Đến ngày hạn thẻ BHYT", json_schema_extra={"example": "2025-12-31"})
 
     # ── ĐKKCB & giới thiệu ────────────────────────────────────────────────────
-    initial_registration: Optional[str] = Field(None, max_length=200, description="Nơi ĐKKCB ban đầu")
-    referral_note:        Optional[str] = Field(None, description="Giới thiệu")
-    referral_facility:    Optional[str] = Field(None, max_length=200, description="Cơ sở giới thiệu/chuyển tuyến")
+    initial_registration: Optional[str] = Field(None, max_length=200, description="Nơi ĐKKCB ban đầu", json_schema_extra={"example": "Bệnh viện Đa khoa Đồng Nai"})
+    referral_note:        Optional[str] = Field(None, description="Giới thiệu", json_schema_extra={"example": "Chuyển từ tuyến dưới"})
+    referral_facility:    Optional[str] = Field(None, max_length=200, description="Cơ sở giới thiệu/chuyển tuyến", json_schema_extra={"example": "Trạm y tế xã Long Hòa"})
 
     # ── Quyền lợi đặc biệt ────────────────────────────────────────────────────
-    high_tech_service:     bool           = Field(False, description="Được hưởng DVKT cao")
-    insurance_5years:      bool           = Field(False, description="BHYT > 5 năm")
-    insurance_5years_date: Optional[date] = Field(None, description="Ngày bắt đầu tính BHYT > 5 năm")
+    high_tech_service:     bool           = Field(False, description="Được hưởng DVKT cao", json_schema_extra={"example": False})
+    insurance_5years:      bool           = Field(False, description="BHYT > 5 năm", json_schema_extra={"example": True})
+    insurance_5years_date: Optional[date] = Field(None, description="Ngày bắt đầu tính BHYT > 5 năm", json_schema_extra={"example": "2021-01-10"})
 
     # ── Trạng thái đặc biệt & nghèo ───────────────────────────────────────────
-    special_status: Optional[str] = Field(None, max_length=100, description="Trạng thái đặc biệt")
-    is_near_poor:   bool           = Field(False, description="Hộ cận nghèo")
-    is_poor:        bool           = Field(False, description="Hộ nghèo")
+    special_status: Optional[str] = Field(None, max_length=100, description="Trạng thái đặc biệt", json_schema_extra={"example": "Người bệnh có hoàn cảnh khó khăn"})
+    is_near_poor:   bool           = Field(False, description="Hộ cận nghèo", json_schema_extra={"example": False})
+    is_poor:        bool           = Field(False, description="Hộ nghèo", json_schema_extra={"example": False})
 
     # ── Phân loại bệnh nhân ───────────────────────────────────────────────────
-    patient_category: Optional[str] = Field(None, max_length=50, description="Người lớn / Trẻ em")
-    patient_type:     Optional[str] = Field(None, max_length=10,  description="Mới / Cũ")
+    patient_category: Optional[str] = Field(None, max_length=50, description="Người lớn / Trẻ em", json_schema_extra={"example": "Người lớn"})
+    patient_type:     Optional[str] = Field(None, max_length=10,  description="Mới / Cũ", json_schema_extra={"example": "Mới"})
 
     # ── Lâm sàng ──────────────────────────────────────────────────────────────
-    reason:      Optional[str] = Field(None, description="Lý do khám / triệu chứng")
-    department:  Optional[str] = Field(None, max_length=100)
-    doctor_name: Optional[str] = Field(None, max_length=100)
-    priority:    int           = Field(0, ge=0, le=2, description="0=thường, 1=ưu tiên, 2=cấp cứu")
+    reason:      Optional[str] = Field(None, description="Lý do khám / triệu chứng", json_schema_extra={"example": "Ho, sốt 3 ngày"})
+    department:  Optional[str] = Field(None, max_length=100, json_schema_extra={"example": "Nội tổng quát"})
+    doctor_name: Optional[str] = Field(None, max_length=100, json_schema_extra={"example": "BS. Trần Minh Đức"})
+    priority:    int           = Field(0, ge=0, le=2, description="0=thường, 1=ưu tiên, 2=cấp cứu", json_schema_extra={"example": 1})
 
     # ── Liên kết & nhân viên ──────────────────────────────────────────────────
-    queue_ticket_id:   Optional[int] = Field(None, description="ID số thứ tự")
-    receptionist_name: Optional[str] = Field(None, max_length=100)
-    internal_note:     Optional[str] = None
+    queue_ticket_id:   Optional[int] = Field(None, description="ID số thứ tự", json_schema_extra={"example": 88})
+    receptionist_name: Optional[str] = Field(None, max_length=100, json_schema_extra={"example": "NV. Lan"})
+    internal_note:     Optional[str] = Field(None, json_schema_extra={"example": "Bệnh nhân đến sớm 15 phút"})
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -238,7 +238,37 @@ class ReceptionResponse(BaseModel):
     # Nested object
     patient: Optional[PatientList] = None
 
-    model_config = {"from_attributes": True}
+    model_config = {
+        "from_attributes": True,
+        "json_schema_extra": {
+            "example": {
+                "id": 42,
+                "visit_date": "2025-02-10",
+                "visit_time": "08:30",
+                "status": "pending",
+                "visit_status": "waiting",
+                "clinic_room": "Phòng khám tổng quát",
+                "visit_number": 12,
+                "insurance_number": "KH12345678",
+                "subject_type": "1",
+                "subject_name": "Bảo hiểm y tế",
+                "department": "Nội tổng quát",
+                "priority": 1,
+                "patient_id": 101,
+                "queue_ticket_id": 88,
+                "created_at": "2025-02-10T08:20:00",
+                "updated_at": "2025-02-10T08:20:00",
+                "patient": {
+                    "id": 101,
+                    "patient_code": "BN2025001",
+                    "full_name": "Nguyễn Văn An",
+                    "cccd": "012345678901",
+                    "phone": "0909123456",
+                    "address_province_name": "TP Hồ Chí Minh"
+                }
+            }
+        },
+    }
 
 
 class ReceptionList(BaseModel):

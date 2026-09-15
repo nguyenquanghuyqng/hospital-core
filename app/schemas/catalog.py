@@ -40,31 +40,48 @@ class DrugCreate(DrugBase):
 
 class DrugUpdate(BaseModel):
     """Cập nhật thuốc — tất cả optional."""
-    drug_name:         Optional[str]     = Field(None, max_length=200)
-    generic_name:      Optional[str]     = None
-    active_ingredient: Optional[str]     = None
-    drug_group:        Optional[str]     = None
-    dosage_form:       Optional[str]     = None
-    strength:          Optional[str]     = None
-    unit:              Optional[str]     = None
-    unit_price:        Optional[Decimal] = None
-    bhyt_price:        Optional[Decimal] = None
-    bhyt_ratio:        Optional[Decimal] = None
-    stock_quantity:    Optional[int]     = None
-    min_stock:         Optional[int]     = None
-    manufacturer:      Optional[str]     = None
-    country:           Optional[str]     = None
-    registration_no:   Optional[str]     = None
-    is_active:         Optional[bool]    = None
-    is_bhyt:           Optional[bool]    = None
-    note:              Optional[str]     = None
+    drug_name:         Optional[str]     = Field(None, max_length=200, json_schema_extra={"example": "Paracetamol 500mg"})
+    generic_name:      Optional[str]     = Field(None, json_schema_extra={"example": "Paracetamol"})
+    active_ingredient: Optional[str]     = Field(None, json_schema_extra={"example": "Paracetamol"})
+    drug_group:        Optional[str]     = Field(None, json_schema_extra={"example": "Giảm đau hạ sốt"})
+    dosage_form:       Optional[str]     = Field(None, json_schema_extra={"example": "Viên nén"})
+    strength:          Optional[str]     = Field(None, json_schema_extra={"example": "500mg"})
+    unit:              Optional[str]     = Field(None, json_schema_extra={"example": "Hộp"})
+    unit_price:        Optional[Decimal] = Field(None, json_schema_extra={"example": "25000"})
+    bhyt_price:        Optional[Decimal] = Field(None, json_schema_extra={"example": "18000"})
+    bhyt_ratio:        Optional[Decimal] = Field(None, json_schema_extra={"example": "0.8"})
+    stock_quantity:    Optional[int]     = Field(None, json_schema_extra={"example": 100})
+    min_stock:         Optional[int]     = Field(None, json_schema_extra={"example": 20})
+    manufacturer:      Optional[str]     = Field(None, json_schema_extra={"example": "Công ty Dược A"})
+    country:           Optional[str]     = Field(None, json_schema_extra={"example": "Việt Nam"})
+    registration_no:   Optional[str]     = Field(None, json_schema_extra={"example": "VN-12345"})
+    is_active:         Optional[bool]    = Field(None, json_schema_extra={"example": True})
+    is_bhyt:           Optional[bool]    = Field(None, json_schema_extra={"example": True})
+    note:              Optional[str]     = Field(None, json_schema_extra={"example": "Thuốc điều trị hạ sốt"})
 
 
 class DrugResponse(DrugBase):
     id:         int
     created_at: datetime
     updated_at: datetime
-    model_config = {"from_attributes": True}
+    model_config = {
+        "from_attributes": True,
+        "json_schema_extra": {
+            "example": {
+                "id": 1,
+                "drug_code": "PAR500",
+                "drug_name": "Paracetamol 500mg",
+                "generic_name": "Paracetamol",
+                "unit": "Hộp",
+                "unit_price": "25000",
+                "stock_quantity": 100,
+                "is_active": True,
+                "is_bhyt": True,
+                "created_at": "2025-02-10T09:00:00",
+                "updated_at": "2025-02-10T09:05:00",
+            }
+        },
+    }
 
 
 class DrugList(BaseModel):
@@ -108,25 +125,40 @@ class ClsServiceCreate(ClsServiceBase):
 
 
 class ClsServiceUpdate(BaseModel):
-    service_name:     Optional[str]     = None
-    service_group:    Optional[str]     = None
-    unit:             Optional[str]     = None
-    unit_price:       Optional[Decimal] = None
-    bhyt_price:       Optional[Decimal] = None
-    bhyt_ratio:       Optional[Decimal] = None
-    result_fields:    Optional[str]     = None
-    turnaround_hours: Optional[int]     = None
-    department:       Optional[str]     = None
-    is_active:        Optional[bool]    = None
-    is_bhyt:          Optional[bool]    = None
-    note:             Optional[str]     = None
+    service_name:     Optional[str]     = Field(None, json_schema_extra={"example": "Xét nghiệm công thức máu"})
+    service_group:    Optional[str]     = Field(None, json_schema_extra={"example": "lab"})
+    unit:             Optional[str]     = Field(None, json_schema_extra={"example": "Lần"})
+    unit_price:       Optional[Decimal] = Field(None, json_schema_extra={"example": "180000"})
+    bhyt_price:       Optional[Decimal] = Field(None, json_schema_extra={"example": "150000"})
+    bhyt_ratio:       Optional[Decimal] = Field(None, json_schema_extra={"example": "0.8"})
+    result_fields:    Optional[str]     = Field(None, json_schema_extra={"example": "[{\"name\":\"wbc\",\"label\":\"WBC\"}]"})
+    turnaround_hours: Optional[int]     = Field(None, json_schema_extra={"example": 6})
+    department:       Optional[str]     = Field(None, json_schema_extra={"example": "Huyết học"})
+    is_active:        Optional[bool]    = Field(None, json_schema_extra={"example": True})
+    is_bhyt:          Optional[bool]    = Field(None, json_schema_extra={"example": True})
+    note:             Optional[str]     = Field(None, json_schema_extra={"example": "Lấy mẫu buổi sáng"})
 
 
 class ClsServiceResponse(ClsServiceBase):
     id:         int
     created_at: datetime
     updated_at: datetime
-    model_config = {"from_attributes": True}
+    model_config = {
+        "from_attributes": True,
+        "json_schema_extra": {
+            "example": {
+                "id": 10,
+                "service_code": "CBC01",
+                "service_name": "Xét nghiệm công thức máu",
+                "service_group": "lab",
+                "unit": "Lần",
+                "unit_price": "180000",
+                "is_bhyt": True,
+                "created_at": "2025-02-10T09:00:00",
+                "updated_at": "2025-02-10T09:10:00",
+            }
+        },
+    }
 
 
 class ClsServiceList(BaseModel):
@@ -158,16 +190,16 @@ class Icd10Response(BaseModel):
 
 class Icd10BulkItem(BaseModel):
     """Dùng cho import bulk từ file."""
-    code:    str = Field(..., max_length=10)
-    name_vi: str = Field(..., max_length=500)
-    name_en: Optional[str] = Field(None, max_length=500)
-    chapter: Optional[str] = Field(None, max_length=10)
-    block:   Optional[str] = Field(None, max_length=20)
-    is_leaf: bool = True
+    code:    str = Field(..., max_length=10, json_schema_extra={"example": "J18.9"})
+    name_vi: str = Field(..., max_length=500, json_schema_extra={"example": "Viêm phổi không xác định nguyên nhân"})
+    name_en: Optional[str] = Field(None, max_length=500, json_schema_extra={"example": "Pneumonia, unspecified"})
+    chapter: Optional[str] = Field(None, max_length=10, json_schema_extra={"example": "J"})
+    block:   Optional[str] = Field(None, max_length=20, json_schema_extra={"example": "J10-J18"})
+    is_leaf: bool = Field(True, json_schema_extra={"example": True})
 
 
 class Icd10BulkRequest(BaseModel):
-    items: List[Icd10BulkItem]
+    items: List[Icd10BulkItem] = Field(..., json_schema_extra={"example": [{"code": "J18.9", "name_vi": "Viêm phổi không xác định nguyên nhân", "name_en": "Pneumonia, unspecified", "chapter": "J", "block": "J10-J18"}]})
 
 
 # ─── SystemConfig — Cấu hình cơ sở ──────────────────────────────────────────

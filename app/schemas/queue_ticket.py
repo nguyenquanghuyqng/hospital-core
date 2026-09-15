@@ -29,8 +29,9 @@ class QueueTicketCreate(BaseModel):
         max_length=50,
         description="Loại dịch vụ: general / lab / imaging / pharmacy",
         examples=["general"],
+        json_schema_extra={"example": "general"},
     )
-    note: Optional[str] = Field(None, description="Ghi chú thêm")
+    note: Optional[str] = Field(None, description="Ghi chú thêm", json_schema_extra={"example": "Bệnh nhân đến khám lần đầu"})
 
 
 class QueueTicketStatusUpdate(BaseModel):
@@ -46,9 +47,9 @@ class QueueTicketStatusUpdate(BaseModel):
         note: Ghi chú thêm (tuỳ chọn).
     """
 
-    status: QueueStatus = Field(..., description="Trạng thái mới")
-    counter_number: Optional[int] = Field(None, ge=1, description="Số quầy")
-    note: Optional[str] = None
+    status: QueueStatus = Field(..., description="Trạng thái mới", json_schema_extra={"example": "calling"})
+    counter_number: Optional[int] = Field(None, ge=1, description="Số quầy", json_schema_extra={"example": 3})
+    note: Optional[str] = Field(None, json_schema_extra={"example": "Gọi bệnh nhân lên quầy 3"})
 
 
 class QueueTicketResponse(BaseModel):
@@ -86,7 +87,26 @@ class QueueTicketResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    model_config = {"from_attributes": True}
+    model_config = {
+        "from_attributes": True,
+        "json_schema_extra": {
+            "example": {
+                "id": 5,
+                "ticket_number": "A005",
+                "sequence": 5,
+                "issue_date": "2025-02-10",
+                "status": "waiting",
+                "service_type": "general",
+                "counter_number": None,
+                "called_at": None,
+                "served_at": None,
+                "done_at": None,
+                "patient_id": 101,
+                "created_at": "2025-02-10T08:00:00",
+                "updated_at": "2025-02-10T08:00:00",
+            }
+        },
+    }
 
 
 class QueueTicketList(BaseModel):

@@ -28,53 +28,59 @@ class PatientBase(BaseModel):
     """
 
     # Thông tin cá nhân
-    full_name:      str           = Field(..., min_length=2, max_length=100, description="Họ và tên")
-    date_of_birth:  Optional[date] = Field(None, description="Ngày sinh")
-    birth_year:     Optional[int]  = Field(None, ge=1900, le=2100, description="Năm sinh")
-    gender:         Optional[str]  = Field(None, description="Giới tính: male / female")
+    full_name:      str           = Field(
+        ...,
+        min_length=2,
+        max_length=100,
+        description="Họ và tên",
+        json_schema_extra={"example": "Nguyễn Văn An"},
+    )
+    date_of_birth:  Optional[date] = Field(None, description="Ngày sinh", json_schema_extra={"example": "1990-05-20"})
+    birth_year:     Optional[int]  = Field(None, ge=1900, le=2100, description="Năm sinh", json_schema_extra={"example": 1990})
+    gender:         Optional[str]  = Field(None, description="Giới tính: male / female", json_schema_extra={"example": "male"})
 
     # CCCD / CMND
-    cccd:             Optional[str]  = Field(None, max_length=12, description="Số CCCD/CMND (9 hoặc 12 số)")
-    cccd_issued_by:   Optional[str]  = Field(None, max_length=200, description="Nơi cấp CCCD/CMND")
-    cccd_issued_date: Optional[date] = Field(None, description="Ngày cấp CCCD/CMND")
+    cccd:             Optional[str]  = Field(None, max_length=12, description="Số CCCD/CMND (9 hoặc 12 số)", json_schema_extra={"example": "012345678901"})
+    cccd_issued_by:   Optional[str]  = Field(None, max_length=200, description="Nơi cấp CCCD/CMND", json_schema_extra={"example": "Cục Cảnh sát QLHC về TTXH"})
+    cccd_issued_date: Optional[date] = Field(None, description="Ngày cấp CCCD/CMND", json_schema_extra={"example": "2020-05-15"})
 
     # Nghề nghiệp
-    occupation: Optional[str] = Field(None, max_length=100, description="Nghề nghiệp")
+    occupation: Optional[str] = Field(None, max_length=100, description="Nghề nghiệp", json_schema_extra={"example": "Kỹ sư phần mềm"})
 
     # Dân tộc (mã + tên, VD: 25 - Kinh)
-    ethnicity_code: Optional[str] = Field(None, max_length=10,  description="Mã dân tộc (VD: 25)")
-    ethnicity_name: Optional[str] = Field(None, max_length=50,  description="Tên dân tộc (VD: Kinh)")
+    ethnicity_code: Optional[str] = Field(None, max_length=10,  description="Mã dân tộc (VD: 25)", json_schema_extra={"example": "KINH"})
+    ethnicity_name: Optional[str] = Field(None, max_length=50,  description="Tên dân tộc (VD: Kinh)", json_schema_extra={"example": "Kinh"})
 
     # Quốc tịch (mã + tên, VD: VN - VIET NAM)
-    nationality_code: Optional[str] = Field(None, max_length=10,  description="Mã quốc tịch (VD: VN)")
-    nationality_name: Optional[str] = Field(None, max_length=100, description="Tên quốc tịch (VD: VIET NAM)")
+    nationality_code: Optional[str] = Field(None, max_length=10,  description="Mã quốc tịch (VD: VN)", json_schema_extra={"example": "VN"})
+    nationality_name: Optional[str] = Field(None, max_length=100, description="Tên quốc tịch (VD: VIET NAM)", json_schema_extra={"example": "Việt Nam"})
 
     # Địa chỉ chi tiết
-    address_street:        Optional[str] = Field(None, max_length=200, description="Số nhà, đường")
-    address_village:       Optional[str] = Field(None, max_length=100, description="Thôn/phố")
-    address_ward_code:     Optional[str] = Field(None, max_length=10,  description="Mã phường/xã")
-    address_ward_name:     Optional[str] = Field(None, max_length=100, description="Tên phường/xã")
-    address_district_code: Optional[str] = Field(None, max_length=10,  description="Mã quận/huyện")
-    address_district_name: Optional[str] = Field(None, max_length=100, description="Tên quận/huyện")
-    address_province_code: Optional[str] = Field(None, max_length=10,  description="Mã tỉnh/TP (VD: 505)")
-    address_province_name: Optional[str] = Field(None, max_length=100, description="Tên tỉnh/TP (VD: Tỉnh Quảng Ngãi)")
-    address:               Optional[str] = Field(None, description="Địa chỉ đầy đủ (tổng hợp hoặc nhập tay)")
+    address_street:        Optional[str] = Field(None, max_length=200, description="Số nhà, đường", json_schema_extra={"example": "12 Lê Lợi"})
+    address_village:       Optional[str] = Field(None, max_length=100, description="Thôn/phố", json_schema_extra={"example": "Phường Bến Nghé"})
+    address_ward_code:     Optional[str] = Field(None, max_length=10,  description="Mã phường/xã", json_schema_extra={"example": "01"})
+    address_ward_name:     Optional[str] = Field(None, max_length=100, description="Tên phường/xã", json_schema_extra={"example": "Bến Nghé"})
+    address_district_code: Optional[str] = Field(None, max_length=10,  description="Mã quận/huyện", json_schema_extra={"example": "01"})
+    address_district_name: Optional[str] = Field(None, max_length=100, description="Tên quận/huyện", json_schema_extra={"example": "Quận 1"})
+    address_province_code: Optional[str] = Field(None, max_length=10,  description="Mã tỉnh/TP (VD: 505)", json_schema_extra={"example": "79"})
+    address_province_name: Optional[str] = Field(None, max_length=100, description="Tên tỉnh/TP (VD: Tỉnh Quảng Ngãi)", json_schema_extra={"example": "TP Hồ Chí Minh"})
+    address:               Optional[str] = Field(None, description="Địa chỉ đầy đủ (tổng hợp hoặc nhập tay)", json_schema_extra={"example": "12 Lê Lợi, Phường Bến Nghé, Quận 1, TP Hồ Chí Minh"})
 
     # Nơi làm việc
-    workplace: Optional[str] = Field(None, max_length=200, description="Nơi làm việc")
+    workplace: Optional[str] = Field(None, max_length=200, description="Nơi làm việc", json_schema_extra={"example": "Công ty TNHH ABC"})
 
     # Liên hệ
-    phone: Optional[str] = Field(None, max_length=15, description="Số điện thoại di động")
-    email: Optional[str] = Field(None, max_length=100, description="Email")
+    phone: Optional[str] = Field(None, max_length=15, description="Số điện thoại di động", json_schema_extra={"example": "0909123456"})
+    email: Optional[str] = Field(None, max_length=100, description="Email", json_schema_extra={"example": "nguyenvanan@gmail.com"})
 
     # Đối tượng chính sách
-    policy_type: Optional[str] = Field(None, max_length=50, description="Loại đối tượng (hộ nghèo, cận nghèo...)")
+    policy_type: Optional[str] = Field(None, max_length=50, description="Loại đối tượng (hộ nghèo, cận nghèo...)", json_schema_extra={"example": "bhyt"})
 
     # Người thân / người đi cùng
-    contact_name:    Optional[str] = Field(None, max_length=100, description="Họ tên người thân")
-    contact_address: Optional[str] = Field(None, max_length=200, description="Địa chỉ người thân")
-    contact_phone:   Optional[str] = Field(None, max_length=15,  description="SĐT người thân")
-    contact_cccd:    Optional[str] = Field(None, max_length=12,  description="CMND người thân")
+    contact_name:    Optional[str] = Field(None, max_length=100, description="Họ tên người thân", json_schema_extra={"example": "Nguyễn Thị Lan"})
+    contact_address: Optional[str] = Field(None, max_length=200, description="Địa chỉ người thân", json_schema_extra={"example": "34 Võ Văn Tần, Phường 6, Quận 3"})
+    contact_phone:   Optional[str] = Field(None, max_length=15,  description="SĐT người thân", json_schema_extra={"example": "0987654321"})
+    contact_cccd:    Optional[str] = Field(None, max_length=12,  description="CMND người thân", json_schema_extra={"example": "321098765432"})
 
     # ── Validators ────────────────────────────────────────────────────────────
 
@@ -170,40 +176,40 @@ class PatientUpdate(BaseModel):
     field chưa truyền với field truyền giá trị ``None``.
     """
 
-    full_name:      Optional[str]  = Field(None, min_length=2, max_length=100)
-    date_of_birth:  Optional[date] = None
-    birth_year:     Optional[int]  = Field(None, ge=1900, le=2100)
-    gender:         Optional[str]  = None
+    full_name:      Optional[str]  = Field(None, min_length=2, max_length=100, json_schema_extra={"example": "Nguyễn Văn An"})
+    date_of_birth:  Optional[date] = Field(None, json_schema_extra={"example": "1990-05-20"})
+    birth_year:     Optional[int]  = Field(None, ge=1900, le=2100, json_schema_extra={"example": 1990})
+    gender:         Optional[str]  = Field(None, json_schema_extra={"example": "male"})
 
-    cccd:             Optional[str]  = Field(None, max_length=12)
-    cccd_issued_by:   Optional[str]  = Field(None, max_length=200)
-    cccd_issued_date: Optional[date] = None
+    cccd:             Optional[str]  = Field(None, max_length=12, json_schema_extra={"example": "012345678901"})
+    cccd_issued_by:   Optional[str]  = Field(None, max_length=200, json_schema_extra={"example": "Cục Cảnh sát QLHC về TTXH"})
+    cccd_issued_date: Optional[date] = Field(None, json_schema_extra={"example": "2020-05-15"})
 
-    occupation:      Optional[str] = Field(None, max_length=100)
-    ethnicity_code:  Optional[str] = Field(None, max_length=10)
-    ethnicity_name:  Optional[str] = Field(None, max_length=50)
-    nationality_code: Optional[str] = Field(None, max_length=10)
-    nationality_name: Optional[str] = Field(None, max_length=100)
+    occupation:      Optional[str] = Field(None, max_length=100, json_schema_extra={"example": "Kỹ sư phần mềm"})
+    ethnicity_code:  Optional[str] = Field(None, max_length=10, json_schema_extra={"example": "KINH"})
+    ethnicity_name:  Optional[str] = Field(None, max_length=50, json_schema_extra={"example": "Kinh"})
+    nationality_code: Optional[str] = Field(None, max_length=10, json_schema_extra={"example": "VN"})
+    nationality_name: Optional[str] = Field(None, max_length=100, json_schema_extra={"example": "Việt Nam"})
 
-    address_street:        Optional[str] = Field(None, max_length=200)
-    address_village:       Optional[str] = Field(None, max_length=100)
-    address_ward_code:     Optional[str] = Field(None, max_length=10)
-    address_ward_name:     Optional[str] = Field(None, max_length=100)
-    address_district_code: Optional[str] = Field(None, max_length=10)
-    address_district_name: Optional[str] = Field(None, max_length=100)
-    address_province_code: Optional[str] = Field(None, max_length=10)
-    address_province_name: Optional[str] = Field(None, max_length=100)
-    address:               Optional[str] = None
+    address_street:        Optional[str] = Field(None, max_length=200, json_schema_extra={"example": "12 Lê Lợi"})
+    address_village:       Optional[str] = Field(None, max_length=100, json_schema_extra={"example": "Phường Bến Nghé"})
+    address_ward_code:     Optional[str] = Field(None, max_length=10, json_schema_extra={"example": "01"})
+    address_ward_name:     Optional[str] = Field(None, max_length=100, json_schema_extra={"example": "Bến Nghé"})
+    address_district_code: Optional[str] = Field(None, max_length=10, json_schema_extra={"example": "01"})
+    address_district_name: Optional[str] = Field(None, max_length=100, json_schema_extra={"example": "Quận 1"})
+    address_province_code: Optional[str] = Field(None, max_length=10, json_schema_extra={"example": "79"})
+    address_province_name: Optional[str] = Field(None, max_length=100, json_schema_extra={"example": "TP Hồ Chí Minh"})
+    address:               Optional[str] = Field(None, json_schema_extra={"example": "12 Lê Lợi, Phường Bến Nghé, Quận 1, TP Hồ Chí Minh"})
 
-    workplace:   Optional[str] = Field(None, max_length=200)
-    phone:       Optional[str] = Field(None, max_length=15)
-    email:       Optional[str] = Field(None, max_length=100)
-    policy_type: Optional[str] = Field(None, max_length=50)
+    workplace:   Optional[str] = Field(None, max_length=200, json_schema_extra={"example": "Công ty TNHH ABC"})
+    phone:       Optional[str] = Field(None, max_length=15, json_schema_extra={"example": "0909123456"})
+    email:       Optional[str] = Field(None, max_length=100, json_schema_extra={"example": "nguyenvanan@gmail.com"})
+    policy_type: Optional[str] = Field(None, max_length=50, json_schema_extra={"example": "bhyt"})
 
-    contact_name:    Optional[str] = Field(None, max_length=100)
-    contact_address: Optional[str] = Field(None, max_length=200)
-    contact_phone:   Optional[str] = Field(None, max_length=15)
-    contact_cccd:    Optional[str] = Field(None, max_length=12)
+    contact_name:    Optional[str] = Field(None, max_length=100, json_schema_extra={"example": "Nguyễn Thị Lan"})
+    contact_address: Optional[str] = Field(None, max_length=200, json_schema_extra={"example": "34 Võ Văn Tần, Phường 6, Quận 3"})
+    contact_phone:   Optional[str] = Field(None, max_length=15, json_schema_extra={"example": "0987654321"})
+    contact_cccd:    Optional[str] = Field(None, max_length=12, json_schema_extra={"example": "321098765432"})
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -226,7 +232,26 @@ class PatientResponse(PatientBase):
     created_at:   datetime
     updated_at:   datetime
 
-    model_config = {"from_attributes": True}
+    model_config = {
+        "from_attributes": True,
+        "json_schema_extra": {
+            "example": {
+                "id": 101,
+                "patient_code": "BN2025001",
+                "full_name": "Nguyễn Văn An",
+                "date_of_birth": "1990-05-20",
+                "birth_year": 1990,
+                "gender": "male",
+                "cccd": "012345678901",
+                "occupation": "Kỹ sư phần mềm",
+                "phone": "0909123456",
+                "email": "nguyenvanan@gmail.com",
+                "address": "12 Lê Lợi, Phường Bến Nghé, Quận 1, TP Hồ Chí Minh",
+                "created_at": "2025-02-10T09:00:00",
+                "updated_at": "2025-02-10T09:30:00",
+            }
+        },
+    }
 
 
 class PatientList(BaseModel):

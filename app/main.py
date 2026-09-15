@@ -78,14 +78,85 @@ app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
     description=(
-        "Hệ thống quản lý phòng khám:\n"
+        "Hệ thống quản lý phòng khám và chăm sóc sức khoẻ:\n"
         "- **Cấp số thứ tự** và hiển thị real-time qua WebSocket\n"
         "- **Quản lý tiếp đón** bệnh nhân (quét CCCD, đăng ký khám)\n"
+        "- **Khám bệnh, lâm sàng, thuốc và viện phí**\n"
+        "- **Quản trị danh mục, kho thuốc, số liệu và xuất báo cáo**\n"
+        "- **Swagger/OpenAPI đầy đủ cho toàn bộ API v1**\n"
     ),
     docs_url="/docs" if settings.DEBUG else None,
     redoc_url="/redoc" if settings.DEBUG else None,
+    swagger_ui_parameters={
+        "persistAuthorization": True,
+        "tagsSorter": "alpha",
+        "operationsSorter": "alpha",
+    },
     lifespan=lifespan,
 )
+
+app.openapi_tags = [
+    {
+        "name": "Auth - Xác thực",
+        "description": "Đăng nhập, xác thực JWT, thông tin người dùng và bootstrap tài khoản hệ thống.",
+    },
+    {
+        "name": "Queue - Hệ thống số thứ tự",
+        "description": "Cấp số, theo dõi lượt khám, gọi bệnh nhân và hiển thị trạng thái chờ thực tế.",
+    },
+    {
+        "name": "Patients - Bệnh nhân",
+        "description": "Quản lý hồ sơ bệnh nhân, tìm kiếm, cập nhật thông tin cá nhân và lịch sử khám.",
+    },
+    {
+        "name": "Reception - Tiếp đón",
+        "description": "Tiếp nhận bệnh nhân, check-in, xác định thông tin và chuyển sang quy trình khám.",
+    },
+    {
+        "name": "Doctor - Phòng khám bác sĩ",
+        "description": "Khu vực làm việc của bác sĩ: danh sách bệnh nhân, thông tin khám, vai trò chuyên môn.",
+    },
+    {
+        "name": "Examination - Phiếu khám",
+        "description": "Tạo, đọc, cập nhật và xóa phiếu khám lâm sàng, trình trạng bệnh nhân và kết luận.",
+    },
+    {
+        "name": "Clinical - Kết quả CLS & Thuốc",
+        "description": "Kết quả cận lâm sàng, thuốc, theo dõi điều trị và dữ liệu lâm sàng hỗ trợ chẩn đoán.",
+    },
+    {
+        "name": "Catalog - Danh mục",
+        "description": "Quản lý thuốc, dịch vụ CLS, nhóm thuốc và dữ liệu danh mục nền tảng của hệ thống.",
+    },
+    {
+        "name": "Billing - Viện phí & Thanh toán",
+        "description": "Tạo hóa đơn, thanh toán, theo dõi viện phí và chi phí điều trị bệnh nhân.",
+    },
+    {
+        "name": "Appointments - Lịch hẹn",
+        "description": "Quản lý lịch hẹn khám, xác nhận bệnh nhân đến, hoàn tất hoặc hủy lịch hẹn.",
+    },
+    {
+        "name": "Export - Xuất dữ liệu",
+        "description": "Xuất báo cáo, dữ liệu thống kê, tệp tin và kết quả dạng báo cáo cho hệ thống bên ngoài.",
+    },
+    {
+        "name": "Admin - Quản trị",
+        "description": "Cấu hình hệ thống, quản lý tài khoản, phân quyền và các chức năng quản trị nội bộ.",
+    },
+    {
+        "name": "Prescription - Đơn thuốc điện tử BYT",
+        "description": "Quản lý đơn thuốc, gửi dữ liệu BYT, ghi nhận thuốc kê cho bệnh nhân và chẩn đoán liên quan.",
+    },
+    {
+        "name": "Inventory - Kho thuốc",
+        "description": "Nhập kho, điều chỉnh tồn kho, xuất thuốc cho bệnh nhân và theo dõi giao dịch kho.",
+    },
+    {
+        "name": "BHYT - Eligibility and Claims",
+        "description": "Xác thực thẻ BHYT, gửi yêu cầu thanh toán, đối soát và xử lý hồ sơ bảo hiểm y tế.",
+    },
+]
 
 # ── CORS ──────────────────────────────────────────────────────────────────────
 configured_origins = [
