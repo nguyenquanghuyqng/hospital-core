@@ -21,6 +21,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSock
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
+from app.core.deps import require_receptionist
 from app.crud.queue_ticket import crud_queue_ticket
 from app.schemas.queue_ticket import (
     QueueTicketCreate, QueueTicketResponse, QueueTicketList,
@@ -229,6 +230,7 @@ async def get_ticket(
 async def call_next(
     counter_number: Optional[int] = Query(None, ge=1, description="Số quầy đang gọi"),
     db: AsyncSession = Depends(get_db),
+    current_user=Depends(require_receptionist),
 ):
     """
     Nhân viên bấm gọi số tiếp theo trong hàng đợi.
@@ -278,6 +280,7 @@ async def update_ticket_status(
     ticket_id: int,
     obj_in: QueueTicketStatusUpdate,
     db: AsyncSession = Depends(get_db),
+    current_user=Depends(require_receptionist),
 ):
     """
     Cập nhật trạng thái số thứ tự thủ công và broadcast summary mới.
@@ -313,6 +316,7 @@ async def update_ticket_status(
 async def skip_ticket(
     ticket_id: int,
     db: AsyncSession = Depends(get_db),
+    current_user=Depends(require_receptionist),
 ):
     """
     Đánh dấu số thứ tự là SKIPPED (gọi không có mặt) và broadcast summary.
@@ -345,6 +349,7 @@ async def skip_ticket(
 async def complete_ticket(
     ticket_id: int,
     db: AsyncSession = Depends(get_db),
+    current_user=Depends(require_receptionist),
 ):
     """
     Đánh dấu số thứ tự là DONE (hoàn thành) và broadcast summary.

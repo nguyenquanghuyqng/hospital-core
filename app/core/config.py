@@ -28,6 +28,8 @@ class Settings(BaseSettings):
     APP_NAME: str = "Hospital Queue Management System"
     APP_VERSION: str = "1.0.0"
     DEBUG: bool = True
+    CORS_ORIGINS: str = ""
+    """Comma-separated browser origins allowed outside development."""
 
     DATABASE_URL: str = "postgresql+asyncpg://postgres:password@localhost:5432/hospital_db"
     DATABASE_SYNC_URL: str = "postgresql+psycopg2://postgres:password@localhost:5432/hospital_db"
@@ -48,8 +50,15 @@ class Settings(BaseSettings):
     NATIONAL_RX_API_KEY: str = ""
     """API key do Sở Y tế cấp."""
 
+    NATIONAL_RX_API_PATH: str = "/don-thuoc"
+    NATIONAL_RX_API_VERSION: str = ""
+
     NATIONAL_RX_TIMEOUT: int = 15
     """Timeout (giây) khi gọi API BYT."""
+
+    BHYT_API_URL: str = ""
+    BHYT_API_KEY: str = ""
+    BHYT_API_TIMEOUT: int = 20
 
     # Convenience lowercase aliases cho services
     @property
@@ -65,8 +74,28 @@ class Settings(BaseSettings):
         return self.NATIONAL_RX_API_KEY
 
     @property
+    def national_rx_api_path(self) -> str:
+        return self.NATIONAL_RX_API_PATH
+
+    @property
+    def national_rx_api_version(self) -> str:
+        return self.NATIONAL_RX_API_VERSION
+
+    @property
     def national_rx_timeout(self) -> int:
         return self.NATIONAL_RX_TIMEOUT
+
+    @property
+    def bhyt_api_url(self) -> str:
+        return self.BHYT_API_URL
+
+    @property
+    def bhyt_api_key(self) -> str:
+        return self.BHYT_API_KEY
+
+    @property
+    def bhyt_api_timeout(self) -> int:
+        return self.BHYT_API_TIMEOUT
 
     class Config:
         """Pydantic config: đọc từ file .env, phân biệt chữ hoa/thường."""

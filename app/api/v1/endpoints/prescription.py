@@ -19,7 +19,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
-from app.core.deps import require_doctor, require_admin, get_current_user
+from app.core.deps import require_doctor, require_admin, require_cashier
 from app.models.user import User
 from app.models.enums import PrescriptionPushStatus
 from app.crud.prescription import crud_prescription
@@ -308,7 +308,7 @@ async def cancel_prescription(
 async def mark_sold(
     prescription_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_cashier),
 ):
     """
     Đồng bộ trạng thái 'đã bán' khi nhà thuốc xác nhận.
@@ -323,6 +323,16 @@ async def mark_sold(
         )
 
     updated = await crud_prescription.mark_sold(db, obj)
+    await crud_audit.log_change(
+        db,
+        user_id=current_user.id,
+        username=current_user.username,
+        action="UPDATE",
+        table_name="prescriptions",
+        record_id=prescription_id,
+        new_data={"sold_at": str(updated.sold_at)},
+        description=f"Xác nhận đã bán đơn {updated.prescription_code}",
+    )
     await db.commit()
     return updated
 

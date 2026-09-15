@@ -7,18 +7,22 @@ Routes:
   POST /auth/register — tạo tài khoản mới
 """
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel
 from typing import Optional
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
-from app.core.security import create_access_token
+from app.core.security import create_access_token, decode_access_token
 from app.core.deps import get_current_user
 from app.crud.user import crud_user
 from app.models.user import User
 
 router = APIRouter(prefix="/auth", tags=["Auth - Xác thực"])
+optional_oauth2_scheme = OAuth2PasswordBearer(
+    tokenUrl="/api/v1/auth/login", auto_error=False
+)
 
 
 # ── Local schemas ─────────────────────────────────────────────────────────────
@@ -162,15 +166,16 @@ async def get_me(current_user: User = Depends(get_current_user)):
 async def register(
     body: RegisterRequest,
     db: AsyncSession = Depends(get_db),
+    token: Optional[str] = Depends(optional_oauth2_scheme),
 ):
     """
     Tạo tài khoản người dùng mới trong hệ thống.
 
     Mật khẩu được hash tự động trước khi lưu vào database.
 
-    Note:
-        Trong môi trường production nên bảo vệ endpoint này bằng admin token.
-        Hiện tại để mở để dễ seed data ban đầu.
+    Quy tắc bảo mật:
+    - Khi database chưa có user: chỉ cho phép tạo tài khoản admin đầu tiên.
+    - Sau bootstrap: bắt buộc Bearer token của admin.
 
     Args:
         body: :class:`RegisterRequest` chứa thông tin tài khoản cần tạo.
@@ -182,6 +187,27 @@ async def register(
     Raises:
         HTTPException 409: Username đã tồn tại trong hệ thống.
     """
+    user_count = await db.scalar(select(func.count()).select_from(User))
+    if user_count:
+        if not token:
+            raise HTTPException(status_code=401, detail="Cần đăng nhập bằng tài khoản admin")
+        payload = decode_access_token(token)
+        try:
+            admin_id = int(payload.get("sub")) if payload else None
+        except (TypeError, ValueError):
+            admin_id = None
+        admin = await db.scalar(select(User).where(User.id == admin_id)) if admin_id else None
+        if not admin or not admin.is_active or admin.role != "admin":
+            raise HTTPException(status_code=403, detail="Chỉ admin được tạo tài khoản mới")
+    elif body.role != "admin":
+        raise HTTPException(
+            status_code=400,
+            detail="Tài khoản đầu tiên phải có role admin để hoàn tất bootstrap an toàn",
+        )
+
+    if body.role not in {"doctor", "nurse", "receptionist", "cashier", "admin"}:
+        raise HTTPException(status_code=422, detail="Role không hợp lệ")
+
     existing = await crud_user.get_by_username(db, body.username)
     if existing:
         raise HTTPException(status_code=409, detail=f"Username '{body.username}' đã tồn tại")

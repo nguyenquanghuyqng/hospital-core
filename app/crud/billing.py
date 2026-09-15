@@ -205,6 +205,15 @@ class CRUDBill(CRUDBase[Bill]):
         cashier_id: Optional[int] = None,
     ) -> Bill:
         """Ghi nhận một lần thanh toán và cập nhật trạng thái bill."""
+        if obj_in.is_deposit and obj_in.is_refund:
+            raise ValueError("Một giao dịch không thể vừa là tạm ứng vừa là hoàn tiền.")
+        if obj_in.is_refund and obj_in.amount > db_obj.deposit_amount:
+            raise ValueError("Chỉ được hoàn tối đa số tiền tạm ứng còn lại.")
+        if not obj_in.is_refund:
+            available = db_obj.patient_pays - db_obj.deposit_amount - db_obj.discount_amount
+            if obj_in.amount > available:
+                raise ValueError("Số tiền thu vượt quá số tiền bệnh nhân còn phải trả.")
+
         payment = Payment(
             bill_id         = db_obj.id,
             cashier_id      = cashier_id,

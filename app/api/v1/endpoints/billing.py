@@ -163,8 +163,11 @@ async def update_bill(
 ):
     """Chỉ cập nhật được khi hóa đơn ở trạng thái DRAFT."""
     bill = await _get_bill_or_404(db, bill_id)
-    if bill.status not in (BillStatus.DRAFT, BillStatus.ISSUED):
-        raise HTTPException(status_code=400, detail="Không thể cập nhật hóa đơn đã thanh toán")
+    if bill.status != BillStatus.DRAFT:
+        raise HTTPException(
+            status_code=409,
+            detail="Hóa đơn chỉ được chỉnh sửa trước khi phát hành.",
+        )
     updated = await crud_bill.update_bill(db, db_obj=bill, obj_in=obj_in)
     await db.commit()
     return updated
@@ -223,9 +226,12 @@ async def add_payment(
             status_code=400,
             detail=f"Hóa đơn phải ở trạng thái ISSUED hoặc PARTIAL (hiện: {bill.status.value})",
         )
-    updated = await crud_bill.add_payment(
-        db, db_obj=bill, obj_in=obj_in, cashier_id=current_user.id
-    )
+    try:
+        updated = await crud_bill.add_payment(
+            db, db_obj=bill, obj_in=obj_in, cashier_id=current_user.id
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     await crud_audit.log_change(
         db,
         user_id=current_user.id,

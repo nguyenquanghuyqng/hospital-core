@@ -46,6 +46,7 @@ from app.services.websocket_manager import ws_manager
 # ── Prescription integration ──────────────────────────────────────────────────
 from app.crud.prescription import crud_prescription
 from app.crud.catalog import crud_audit  # noqa: F811 — re-import ok
+from app.crud.catalog import crud_icd10
 from app.schemas.prescription import PrescriptionCreate
 from app.services.prescription_validator import (
     validate_prescription_prerequisites,
@@ -651,11 +652,19 @@ async def complete_examination(
 
             prescription_id_to_push = new_prescription.id
         except Exception as exc:
-            # Không để lỗi tạo đơn chặn việc complete phiếu khám
-            logger.error(
+            # Keep examination completion and official prescription creation
+            # consistent: a failed prescription must roll back the completion.
+            logger.exception(
                 "Failed to create prescription for examination %d: %s",
                 examination_id, exc,
             )
+            raise HTTPException(
+                status_code=502,
+                detail=(
+                    "Không thể tạo đơn thuốc điện tử. Phiếu khám chưa được hoàn tất; "
+                    "hãy kiểm tra cấu hình mã cơ sở và dữ liệu bắt buộc rồi thử lại."
+                ),
+            ) from exc
 
     await db.commit()
     if prescription_id_to_push is not None:
@@ -773,6 +782,14 @@ async def add_diagnosis(
     """
     exam = await _get_exam_or_404(db, examination_id)
     _assert_not_completed(exam)
+    if obj_in.icd_code:
+        icd = await crud_icd10.get_by_code(db, obj_in.icd_code.upper())
+        if not icd:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Mã ICD-10 không tồn tại trong danh mục: {obj_in.icd_code}",
+            )
+        obj_in = obj_in.model_copy(update={"icd_code": icd.code, "icd_name": icd.name_vi})
     diag = await crud_examination.add_diagnosis(db, examination_id=examination_id, obj_in=obj_in)
     await crud_audit.log_change(
         db,

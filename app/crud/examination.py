@@ -9,7 +9,7 @@ from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import List, Optional
 
-from sqlalchemy import select, func
+from sqlalchemy import select, func, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -392,6 +392,12 @@ class CRUDExamination(CRUDBase[Examination]):
             .where(Diagnosis.examination_id == examination_id)
         )
         next_order = (result.scalar_one() or -1) + 1
+        if obj_in.is_primary:
+            await db.execute(
+                update(Diagnosis)
+                .where(Diagnosis.examination_id == examination_id)
+                .values(is_primary=False)
+            )
         data = obj_in.model_dump()
         data["examination_id"] = examination_id
         data["sort_order"] = next_order

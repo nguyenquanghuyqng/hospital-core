@@ -22,6 +22,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
+from app.core.deps import require_receptionist
 from app.crud.patient import crud_patient
 from app.crud.reception import crud_reception
 from app.crud.queue_ticket import crud_queue_ticket
@@ -35,7 +36,11 @@ from app.schemas.common import PaginatedResponse, MessageResponse
 from app.models.reception import ReceptionStatus
 from app.services.websocket_manager import ws_manager
 
-router = APIRouter(prefix="/receptions", tags=["Reception - Tiếp đón"])
+router = APIRouter(
+    prefix="/receptions",
+    tags=["Reception - Tiếp đón"],
+    dependencies=[Depends(require_receptionist)],
+)
 
 
 # ── Local schemas ─────────────────────────────────────────────────────────────

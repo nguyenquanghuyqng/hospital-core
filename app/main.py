@@ -52,6 +52,19 @@ async def lifespan(app: FastAPI):
     Yields:
         Điểm giữa ``yield`` là thời gian app đang phục vụ request.
     """
+    if not settings.DEBUG:
+        insecure = []
+        if settings.SECRET_KEY == "changeme-in-production":
+            insecure.append("SECRET_KEY")
+        if "password" in settings.DATABASE_URL and "localhost" in settings.DATABASE_URL:
+            insecure.append("DATABASE_URL")
+        if not settings.CORS_ORIGINS.strip():
+            insecure.append("CORS_ORIGINS")
+        if insecure:
+            raise RuntimeError(
+                "Thiếu cấu hình production bắt buộc: " + ", ".join(insecure)
+            )
+
     logger.info(f"🏥  {settings.APP_NAME} v{settings.APP_VERSION} starting…")
     retry_task = asyncio.create_task(run_retry_task(get_db))
     yield
@@ -69,16 +82,24 @@ app = FastAPI(
         "- **Cấp số thứ tự** và hiển thị real-time qua WebSocket\n"
         "- **Quản lý tiếp đón** bệnh nhân (quét CCCD, đăng ký khám)\n"
     ),
-    docs_url="/docs",
-    redoc_url="/redoc",
+    docs_url="/docs" if settings.DEBUG else None,
+    redoc_url="/redoc" if settings.DEBUG else None,
     lifespan=lifespan,
 )
 
 # ── CORS ──────────────────────────────────────────────────────────────────────
+configured_origins = [
+    origin.strip() for origin in settings.CORS_ORIGINS.split(",") if origin.strip()
+]
+if settings.DEBUG and not configured_origins:
+    configured_origins = ["*"]
+if "*" in configured_origins and not settings.DEBUG:
+    raise RuntimeError("CORS_ORIGINS production không được chứa wildcard '*'")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],          # Thay bằng domain cụ thể khi lên production
-    allow_credentials=True,
+    allow_origins=configured_origins,
+    allow_credentials="*" not in configured_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )

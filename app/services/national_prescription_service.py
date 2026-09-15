@@ -17,6 +17,7 @@ Khi chưa cấu hình NATIONAL_RX_API_URL:
   Service log warning và gán push_status = ERROR (không crash).
 """
 import asyncio
+import hashlib
 import json
 import logging
 from datetime import date, datetime, timezone
@@ -56,6 +57,8 @@ def _build_byt_payload(prescription: Prescription) -> dict:
     """
     items = []
     for item in (prescription.prescription_items or []):
+        if item.item_type != "drug":
+            continue
         items.append({
             "maThuoc":       item.item_code or "",
             "tenThuoc":      item.item_name,
@@ -118,7 +121,27 @@ async def push_prescription_to_national_system(
         )
         return False
 
+    if not prescription.prescription_code or not prescription.facility_code:
+        await crud_prescription.update_push_status(
+            db, prescription, PrescriptionPushStatus.ERROR,
+            error_info={"reason": "missing_prescription_identity"},
+        )
+        return False
+    drug_items = [
+        item for item in (prescription.prescription_items or [])
+        if item.item_type == "drug"
+    ]
+    if not drug_items:
+        await crud_prescription.update_push_status(
+            db, prescription, PrescriptionPushStatus.ERROR,
+            error_info={"reason": "prescription_has_no_drug_items"},
+        )
+        return False
+
     payload = _build_byt_payload(prescription)
+    idempotency_key = hashlib.sha256(
+        f"{prescription.prescription_code}:{prescription.supersedes_id or 0}".encode()
+    ).hexdigest()
 
     # Cập nhật trạng thái SENDING
     await crud_prescription.update_push_status(
@@ -129,11 +152,18 @@ async def push_prescription_to_national_system(
 
     try:
         async with httpx.AsyncClient(timeout=timeout) as client:
+            api_path = getattr(settings, "national_rx_api_path", "/don-thuoc")
             resp = await client.post(
-                f"{api_url}/don-thuoc",
+                f"{api_url.rstrip('/')}/{api_path.lstrip('/')}",
                 json=payload,
                 headers={
                     "X-Api-Key": api_key or "",
+                    "X-Idempotency-Key": idempotency_key,
+                    **(
+                        {"X-Api-Version": settings.national_rx_api_version}
+                        if getattr(settings, "national_rx_api_version", "")
+                        else {}
+                    ),
                     "Content-Type": "application/json",
                     "Accept": "application/json",
                 },

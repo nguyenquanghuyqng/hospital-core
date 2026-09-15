@@ -16,13 +16,18 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
+from app.core.deps import require_patient_records
 from app.crud.patient import crud_patient
 from app.crud.reception import crud_reception
 from app.schemas.patient import PatientCreate, PatientUpdate, PatientResponse, PatientList
 from app.schemas.reception import ReceptionList
 from app.schemas.common import PaginatedResponse
 
-router = APIRouter(prefix="/patients", tags=["Patients - Bệnh nhân"])
+router = APIRouter(
+    prefix="/patients",
+    tags=["Patients - Bệnh nhân"],
+    dependencies=[Depends(require_patient_records)],
+)
 
 
 @router.get(

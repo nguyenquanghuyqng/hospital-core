@@ -34,6 +34,7 @@ _DOCTOR_ROLES       = frozenset({"doctor", "admin"})
 _NURSE_ROLES        = frozenset({"nurse", "doctor", "admin"})
 _CLINICAL_ROLES     = frozenset({"doctor", "nurse", "admin"})
 _RECEPTIONIST_ROLES = frozenset({"receptionist", "admin"})
+_PATIENT_RECORD_ROLES = frozenset({"receptionist", "nurse", "doctor", "admin"})
 _CASHIER_ROLES      = frozenset({"cashier", "admin"})
 _ADMIN_ROLES        = frozenset({"admin"})
 
@@ -88,5 +89,8 @@ require_doctor       = _make_require(_DOCTOR_ROLES,       "doctor / admin")
 require_nurse        = _make_require(_NURSE_ROLES,        "nurse / doctor / admin")
 require_clinical     = _make_require(_CLINICAL_ROLES,     "doctor / nurse / admin")
 require_receptionist = _make_require(_RECEPTIONIST_ROLES, "receptionist / admin")
+require_patient_records = _make_require(
+    _PATIENT_RECORD_ROLES, "receptionist / nurse / doctor / admin"
+)
 require_cashier      = _make_require(_CASHIER_ROLES,      "cashier / admin")
 require_admin        = _make_require(_ADMIN_ROLES,        "admin")

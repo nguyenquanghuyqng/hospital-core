@@ -406,6 +406,24 @@ python3 -c "import secrets; print(secrets.token_hex(32))"
 - Chạy sau reverse proxy (nginx / caddy) để xử lý TLS
 - Không commit file `.env`
 
+### Backup và khôi phục cơ sở dữ liệu
+
+Các script trong `scripts/` dùng PostgreSQL custom-format backup, backup globals,
+checksum và retention. Mật khẩu phải được cấp qua `PGPASSWORD` hoặc `.pgpass`,
+không đặt trong script.
+
+```bash
+export PGHOST=localhost PGPORT=5432 PGUSER=postgres PGDATABASE=hospital_db
+BACKUP_DIR=./backups RETENTION_DAYS=30 ./scripts/backup_db.sh
+./scripts/verify_backup.sh ./backups/hospital_db_<timestamp>.dump
+CONFIRM_RESTORE=YES ./scripts/restore_db.sh ./backups/hospital_db_<timestamp>.dump
+```
+
+Quy trình production phải chạy backup theo scheduler bên ngoài ứng dụng, lưu bản
+sao lưu ở máy/region khác, kiểm tra restore định kỳ và ghi nhận RPO/RTO. Không
+thực hiện restore trên database production khi chưa có cửa sổ bảo trì và bản sao
+lưu mới nhất.
+
 ---
 
 ## Tài liệu nghiệp vụ
